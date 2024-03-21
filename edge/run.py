@@ -54,13 +54,8 @@ class EdgeProcessor:
             print(f"Config file {src_path} has been modified")
             self.reload_event.set()
 
-        def on_deleted(src_path: str):
-            print(f"Config file {src_path} has been deleted")
-            self.shutdown_event.set()
-
         handler = ConfigChangeHandler(
             on_modified=on_modified,
-            on_deleted=on_deleted
         )
 
         self.observer = Observer()
