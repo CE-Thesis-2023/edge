@@ -23,6 +23,7 @@ class EdgeProcessor:
             print("Edge processor exiting")
             self.stop()
             sys.exit()
+        self.configure()
 
         self.init_observers()
         self.init_signaler(on_exit)
@@ -134,3 +135,8 @@ class EdgeProcessor:
         self.motion_proc.join()
 
         self.fq.close()
+
+    def configure(self) -> None:
+        if not os.path.exists(DEFAULT_CONFIG_FILE):
+            raise FileNotFoundError(
+                f"Config file {DEFAULT_CONFIG_FILE} not found")
