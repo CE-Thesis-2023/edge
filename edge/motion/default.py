@@ -22,10 +22,10 @@ class MotionDetectionProcess():
                  detector: MotionDetectorApi) -> None:
         self.fq = fq
         self.detector = detector
-        self.event = mp.Event()
+        self._shutdown = False
 
     def run(self):
-        while not self.event.is_set():
+        while not self._shutdown:
             try:
                 frame = self.fq.get(timeout=1)
             except queue.Empty:
@@ -35,10 +35,11 @@ class MotionDetectionProcess():
         return
 
     def stop(self):
-        self.event.set()
+        self._shutdown = True
 
 
-def run_motion_detector(detector: MotionDetectionProcess):
+def run_motion_detector(
+        detector: MotionDetectionProcess):
     print("Motion detection process started")
 
     def on_exit(_, __):
