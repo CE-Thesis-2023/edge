@@ -1,7 +1,7 @@
 from edge.streams.ffmpeg import start_or_restart_ffmpeg, stop_ffmpeg
 import signal
 from edge.utils.events import EventsPerSecond
-from edge.streams.api import StreamProviderApi
+from edge.streams.api import StreamProviderAPI
 import time
 import multiprocessing as mp
 import logging
@@ -17,18 +17,7 @@ from edge.utils.pipe import LogPipe
 logger = logging.getLogger(__name__)
 
 
-class CameraWatchdog():
-    def __init__(self) -> None:
-        pass
-
-    def run(self) -> None:
-        return
-
-    def stop(self) -> None:
-        return
-
-
-class CameraCapturerProvider(StreamProviderApi):
+class CameraCapturerProvider(StreamProviderAPI):
     def __init__(self) -> None:
         pass
 
@@ -152,7 +141,7 @@ class FrameCapturer(threading.Thread):
         c.run()
 
 
-class PreRecordedProvider(StreamProviderApi):
+class PreRecordedProvider(StreamProviderAPI):
     # Runs and manages the lifecycle of the FFmpeg process
     # Initialize the Capturer thread
     def __init__(self,
@@ -243,7 +232,7 @@ class PreRecordedProvider(StreamProviderApi):
         self.log_pipe.close()
 
 
-def run_capturer(capturer: StreamProviderApi):
+def run_capturer(capturer: StreamProviderAPI):
     print("Capturer process started")
 
     def on_exit(_, __):

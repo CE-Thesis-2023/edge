@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 
 
-class StreamProviderApi(ABC):
+class StreamProviderAPI(ABC):
     """
     Standard interface for 
     any video source collector that transforms a real-time video stream 
