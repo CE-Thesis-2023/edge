@@ -1,10 +1,7 @@
 import multiprocessing as mp
 import subprocess as sp
 from edge.utils.pipe import LogPipe
-import logging
-from logging import Logger
-
-logger = logging.getLogger(__name__)
+from loguru import logger, Logger
 
 
 def stop_ffmpeg(logger: Logger, ffmpeg_process: sp.Popen):

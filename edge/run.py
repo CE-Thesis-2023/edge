@@ -1,5 +1,5 @@
 from hanging_threads import start_monitoring
-import logging
+from loguru import logger
 import os
 import queue
 from edge.streams.capture import run_capturer
@@ -14,8 +14,6 @@ from edge.utils.configs import ConfigChangeHandler
 from edge.config import EdgeConfig
 
 DEFAULT_CONFIG_FILE = "./config.yaml"
-
-logger = logging.getLogger(__name__)
 
 start_monitoring(seconds_frozen=10, test_interval=100)
 

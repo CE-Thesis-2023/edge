@@ -4,18 +4,16 @@ from edge.utils.events import EventsPerSecond
 from edge.streams.api import StreamProviderAPI
 import time
 import multiprocessing as mp
-import logging
+from loguru import logger
 import multiprocessing as mp
 import subprocess as sp
-from typing import Dict, Tuple
+from typing import Tuple
 import datetime
 import threading
 from edge.config import CameraConfig
 
 from edge.utils.frame import FrameManager, SharedMemoryFrameManager
 from edge.utils.pipe import LogPipe
-
-logger = logging.getLogger(__name__)
 
 
 class FrameCollector():
@@ -147,7 +145,7 @@ class PreRecordedProvider(StreamProviderAPI, threading.Thread):
         self.configs = configs
 
     def run(self) -> None:
-        logger.info("PreRecordedProvider starting")
+        logger.info("PreRecordedProvider: Starting")
         self.start_ffmpeg()
 
         time.sleep(self.retry_interval)
@@ -218,7 +216,7 @@ class PreRecordedProvider(StreamProviderAPI, threading.Thread):
             logger=logger,
             ffmpeg_process=self.ffmpeg_provider_process)
         self.log_pipe.close()
-        logging.info("PreRecordedProvider stopped")
+        logger.info("PreRecordedProvider stopped")
 
 
 def run_capturer(

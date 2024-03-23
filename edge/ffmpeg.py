@@ -2,7 +2,7 @@ from enum import Enum
 import os
 import shlex
 from typing import Any, List, Optional, Self, Tuple
-from venv import logger
+from loguru import logger
 import subprocess as sp
 import requests
 
