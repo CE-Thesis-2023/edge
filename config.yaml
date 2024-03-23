@@ -3,9 +3,11 @@ cameras:
     enabled: true
     best_image_timeout: 10
     source:
-      path: './tests/src/video.mp4'
+      path: '/home/nguyentt/Projects/edge/tests/src/video.mp4'
       ffmpeg:
         retry_interval: 5.0
+        input_args: mp4_generic
+        hwaccel_args: va_api
     detect:
       height: 320
       width: 320

@@ -48,19 +48,20 @@ class FrameCollector():
             self.fps.value = self.frame_counter.eps()
             self.skipped_fps.value = self.skipped_frame_counter.eps()
             self.current_frame.value = datetime.datetime.now().timestamp()
+            logger.info(f"FPS: {self.fps.value}")
 
             frame_name = f"{self.source_name}@{self.current_frame.value}"
             buffer = self.fm.create(name=frame_name, size=self.frame_size)
             try:
                 buffer[:] = self.ffmpeg_process.stdout.read(self.frame_size)
-            except Exception:
+            except Exception as e:
                 # shutdown has been initiated
                 if self.stop_event.is_set():
                     logger.info(
                         f"Frame collector exit requested for source {self.source_name}")
                     break
                 logger.error(
-                    f"Error reading frame from FFmpeg process for source {self.source_name}")
+                    f"Error reading frame from FFmpeg process for source {self.source_name}: {e}")
                 if self.ffmpeg_process.poll() is not None:
                     logger.error(
                         f"FFmpeg process has exited for {self.source_name}")
@@ -70,7 +71,7 @@ class FrameCollector():
                 continue
             self.frame_counter.update()
             try:
-                self.frame_queue.put(obj=self.current_frame.value, block=False)
+                # self.frame_queue.put(obj=self.current_frame.value, block=False)
                 self.fm.close(name=frame_name)
             except Exception:
                 logger.error(
@@ -93,7 +94,7 @@ class FrameCapturer(threading.Thread):
             skipped_fps: mp.Value,
             stop_event: mp.Event) -> None:
         threading.Thread.__init__(self)
-        self.source_name = f"capturer:{source_name}"
+        self.source_name = f"capturer_{source_name}"
         self.frame_shape = frame_shape
         self.frame_queue = frame_queue
         self.fps: mp.Value = fps

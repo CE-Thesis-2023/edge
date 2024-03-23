@@ -83,6 +83,9 @@ PRESETS_INPUT = {
         "-f", "live_flv",
     ],
     PresetsInputType.MP4_GENERIC: [
+        "-fflags", "+genpts+discardcorrupt",
+        "-rw_timeout", "5000000",
+        "-f", "rawvideo",
     ]
 }
 
@@ -103,8 +106,8 @@ class HardwareAccelationScaleType(str, Enum):
 
 PRESET_HARDWARE_ACCEL_SCALE = {
     HardwareAccelationScaleType.DEFAULT: "-r {0} -vf fps={0},scale={1}:{2}",
-    HardwareAccelationScaleType.VA_API: f"-r {0} -vf fps={0},scale_vaapi=w={1}:h={2}:format=nv12,hwdownload,format=nv12,format=yuv420p",
-    HardwareAccelationScaleType.NVIDIA_CUDA: f"-r {0} -vf fps={0},scale_cuda=w={1}:h={2}:format=nv12,hwdownload,format=nv12,format=yuv420p",
+    HardwareAccelationScaleType.VA_API: "-r {0} -vf fps={0},scale_vaapi=w={1}:h={2}:format=nv12,hwdownload,format=nv12,format=yuv420p",
+    HardwareAccelationScaleType.NVIDIA_CUDA: "-r {0} -vf fps={0},scale_cuda=w={1}:h={2}:format=nv12,hwdownload,format=nv12,format=yuv420p",
     HardwareAccelationScaleType.INTEL_QUICKSYNC_H264: "-r {0} -vf vpp_qsv=framerate={0}:w={1}:h={2}:format=nv12,hwdownload,format=nv12,format=yuv420p"
 }
 

@@ -261,9 +261,10 @@ class CameraConfig(EdgeBaseModel):
             ["ffmpeg"]
             + global_args
             + decode_args
-            + input_args
             + ["-i", input.path]
+            + input_args
             + scale_detect_args
+            + ["pipe:"]
         )
         return [part for part in cmd if part != ""]
 
