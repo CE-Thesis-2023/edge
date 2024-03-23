@@ -19,7 +19,8 @@ start_monitoring(seconds_frozen=10, test_interval=100)
 
 class EdgeProcessor:
     def __init__(self) -> None:
-        logger.level(name="DEBUG")
+        logger.remove()
+        logger.add(sys.stdout, colorize=False)
         return
 
     def start(self) -> None:
