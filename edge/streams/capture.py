@@ -57,13 +57,13 @@ class FrameCollector():
                 # shutdown has been initiated
                 if self.stop_event.is_set():
                     logger.info(
-                        f"{self.source_name}: Frame collector exit requested")
+                        f"Frame collector exit requested for source {self.source_name}")
                     break
                 logger.error(
-                    f"{self.source_name}: Error reading frame from FFmpeg process")
+                    f"Error reading frame from FFmpeg process for source {self.source_name}")
                 if self.ffmpeg_process.poll() is not None:
                     logger.error(
-                        f"{self.source_name}: FFmpeg process has exited")
+                        f"FFmpeg process has exited for {self.source_name}")
                     self.fm.delete(name=frame_name)
                     break
                 # just a corrupted frame, skip it
@@ -74,10 +74,10 @@ class FrameCollector():
                 self.fm.close(name=frame_name)
             except Exception:
                 logger.error(
-                    f"{self.source_name}: Error putting frame in queue")
+                    f"Error putting frame in queue for {self.source_name}")
                 self.skipped_frame_counter.update()
                 self.fm.delete(name=frame_name)
-        logger.info(f"{self.source_name}: Frame collector exited")
+        logger.info(f"Frame collector exited for {self.source_name}")
         return
 
 
@@ -155,16 +155,16 @@ class PreRecordedProvider(StreamProviderAPI, threading.Thread):
             if not self.capturer_thread.is_alive():
                 self.camera_fps.value = 0
                 logger.error(
-                    f"{self.source_name}: Capturer thread has unexpectedly stopped")
+                    f"Capturer thread has unexpectedly stopped for {self.source_name}")
                 logger.error(
                     "Displaying the last 100 lines of the FFmpeg log")
                 self.log_pipe.dump()
-                logger.info(f"{self.source_name}: Restarting FFmpeg")
+                logger.info(f"Restarting FFmpeg for {self.source_name}")
                 self.start_ffmpeg()
             elif now - self.capturer_thread.current_frame.value > 20:
                 self.camera_fps.value = 0
                 logger.error(
-                    f"{self.source_name}: Capturer thread has stopped producing frames for 20 seconds")
+                    f"Capturer thread has stopped producing frames for 20 seconds for {self.source_name}")
                 self.ffmpeg_provider_process.terminate()
                 try:
                     logger.info("Waiting for FFmpeg process to finish")
@@ -176,7 +176,7 @@ class PreRecordedProvider(StreamProviderAPI, threading.Thread):
             elif self.camera_fps.value >= 30 + 10:
                 self.camera_fps.value = 0
                 logger.error(
-                    f"{self.source_name}: Capturer thread is producing more than 40 frames per second")
+                    f"Capturer thread is producing more than 40 frames per second for {self.source_name}")
                 self.ffmpeg_provider_process.terminate()
                 try:
                     logger.info("Waiting for FFmpeg process to finish")

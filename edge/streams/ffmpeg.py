@@ -1,10 +1,10 @@
 import multiprocessing as mp
 import subprocess as sp
 from edge.utils.pipe import LogPipe
-from loguru import logger, Logger
+from loguru import logger
 
 
-def stop_ffmpeg(logger: Logger, ffmpeg_process: sp.Popen):
+def stop_ffmpeg(logger, ffmpeg_process: sp.Popen):
     logger.info("Stopping FFmpeg process")
     ffmpeg_process.terminate()
     try:
@@ -20,7 +20,7 @@ def stop_ffmpeg(logger: Logger, ffmpeg_process: sp.Popen):
 
 def start_or_restart_ffmpeg(
         ffmpeg_cmd: str,
-        logger: Logger,
+        logger,
         log_pipe: LogPipe,
         frame_size=None,
         ffmpeg_process=None):

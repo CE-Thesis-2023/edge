@@ -1,7 +1,6 @@
 from hanging_threads import start_monitoring
 from loguru import logger
 import os
-import queue
 from edge.streams.capture import run_capturer
 from edge.motion.default import DefaultMotionDetector, MotionDetectionProcess, run_motion_detector
 import multiprocessing as mp
@@ -20,7 +19,7 @@ start_monitoring(seconds_frozen=10, test_interval=100)
 
 class EdgeProcessor:
     def __init__(self) -> None:
-        logging.basicConfig(encoding='utf-8', level=logging.DEBUG)
+        logger.level(name="DEBUG")
         return
 
     def start(self) -> None:
