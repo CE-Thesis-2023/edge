@@ -3,7 +3,7 @@ cameras:
     enabled: true
     best_image_timeout: 10
     source:
-      path: '../../tests/src/video.mp4'
+      path: './tests/src/video.mp4'
       ffmpeg:
         retry_interval: 5.0
     detect:

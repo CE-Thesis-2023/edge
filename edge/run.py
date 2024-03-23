@@ -1,7 +1,8 @@
+from hanging_threads import start_monitoring
 import logging
 import os
 import queue
-from edge.streams.capture import PreRecordedCapturer, run_capturer
+from edge.streams.capture import run_capturer
 from edge.motion.default import DefaultMotionDetector, MotionDetectionProcess, run_motion_detector
 import multiprocessing as mp
 import signal
@@ -10,43 +11,63 @@ import sys
 from watchdog.observers import Observer
 from watchdog.events import LoggingEventHandler
 from edge.utils.configs import ConfigChangeHandler
+from edge.config import EdgeConfig
 
-DEFAULT_CONFIG_FILE = "./config.json"
+DEFAULT_CONFIG_FILE = "./config.yaml"
+
+logger = logging.getLogger(__name__)
+
+start_monitoring(seconds_frozen=10, test_interval=100)
 
 
 class EdgeProcessor:
     def __init__(self) -> None:
+        logging.basicConfig(encoding='utf-8', level=logging.DEBUG)
         return
 
     def start(self) -> None:
         def on_exit():
-            print("Edge processor exiting")
+            logger.info("EdgeProcessor: Requested exiting")
             self.stop()
+            logger.info("EdgeProcessor: Going to sys.exit")
             sys.exit()
+
         self.configure()
 
         self.init_observers()
         self.init_signaler(on_exit)
 
-        self.start_observers()
         while not self.is_shutdown():
             self.reload_event.clear()
 
-            self.init_queues()
-            self.init_capturers()
+            self.read_configs()
+
             self.init_detectors()
+            self.init_capturers()
 
             self.start_capturers()
             self.start_detectors()
 
             while not self.is_reload():
                 time.sleep(2)
-
-            print("Stop and reload")
             self.reload()
 
         self.stop_observers()
-        print("Edge processor exited")
+        logger.info("Edge processor exited")
+
+    def read_configs(self) -> None:
+        self.configs = EdgeConfig.parse_file(config_file=DEFAULT_CONFIG_FILE)
+        self.capturer_info = dict()
+
+        for name, config in self.configs.cameras.items():
+            self.capturer_info[name] = {
+                "camera_fps": mp.Value("d", 0.0),
+                "skipped_fps": mp.Value("d", 0.0),
+                "ffmpeg_pid": mp.Value("i", 0),
+                "frame_queue": mp.Queue(maxsize=50),
+                "capturer_process": None,
+                "camera_config": config,
+            }
 
     def init_observers(self) -> None:
         self.reload_event = mp.Event()
@@ -88,35 +109,54 @@ class EdgeProcessor:
         self.observer.stop()
         self.observer.join()
 
-    def init_capturers(self) -> None:
-        self.capturer = PreRecordedCapturer(fq=self.fq)
-
     def init_detectors(self) -> None:
-        motion = DefaultMotionDetector()
-        self.motion = MotionDetectionProcess(fq=self.fq, detector=motion)
+        # motion = DefaultMotionDetector()
+        # self.motion = MotionDetectionProcess(fq=self.capturer_info.[
+        #                                      0]["frame_queue"], detector=motion)
+        return
+
+    def init_capturers(self) -> None:
+        for name, camera in self.configs.cameras.items():
+            if not camera.enabled:
+                logger.info(f"Camera {name} is disabled, skipping")
+                continue
+            i = self.capturer_info[name]
+            proc = mp.Process(
+                target=run_capturer,
+                name=f"capturer:{name}",
+                args=(name, camera,
+                      i["frame_queue"],
+                      i["camera_fps"],
+                      i["skipped_fps"],
+                      i["ffmpeg_pid"])
+            )
+            proc.daemon = True
+            self.capturer_info[name]["capturer_process"] = proc
+            logger.info(f"Initialized capturer process {name}")
 
     def start_capturers(self) -> None:
-        self.capturer_proc = mp.Process(
-            name="edge.Capturer",
-            target=run_capturer,
-            args=(self.capturer,))
-        self.capturer_proc.start()
+        for name, info in self.capturer_info.items():
+            p = info["capturer_process"]
+            p.start()
+            logger.info(f"Capturer started for camera {name} PID={p.pid}")
 
     def stop_capturers(self) -> None:
-        self.capturer_proc.terminate()
+        for name, info in self.capturer_info.items():
+            p = info["capturer_process"]
+            p.terminate()
+            logger.info(f"Capturer stopped for camera {name} PID={p.pid}")
 
     def start_detectors(self) -> None:
-        self.motion_proc = mp.Process(
-            name="edge.MotionDetector",
-            target=run_motion_detector,
-            args=(self.motion,))
-        self.motion_proc.start()
+        # self.motion_proc = mp.Process(
+        #     name="edge.MotionDetector",
+        #     target=run_motion_detector,
+        #     args=(self.motion,))
+        # self.motion_proc.start()
+        return
 
     def stop_detectors(self) -> None:
-        self.motion_proc.terminate()
-
-    def init_queues(self) -> None:
-        self.fq = mp.Queue(maxsize=500)
+        # self.motion_proc.terminate()
+        return
 
     def reload(self) -> None:
         self.stop_capturers()
@@ -125,16 +165,19 @@ class EdgeProcessor:
         self.stop()
 
     def stop(self) -> None:
-        while not self.fq.empty():
-            try:
-                self.fq.get(timeout=1)
-            except queue.Empty as e:
-                break
-
-        self.capturer_proc.join()
-        self.motion_proc.join()
-
-        self.fq.close()
+        for name, capturer in self.capturer_info.items():
+            proc = capturer["capturer_process"]
+            q: mp.Queue = capturer["frame_queue"]
+            if q is not None:
+                while not q.empty():
+                    q.get_nowait()
+            q.close()
+            logger.info(f"EdgeProcessor: Queue for process {name} cleared")
+            if proc is not None:
+                logger.info(
+                    f"EdgeProcessor: Waiting for process {name} to exit")
+                proc.join()
+            logger.info(f"EdgeProcessor: Capturer process {name} stopped")
 
     def configure(self) -> None:
         if not os.path.exists(DEFAULT_CONFIG_FILE):

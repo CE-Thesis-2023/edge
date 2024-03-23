@@ -1,4 +1,4 @@
-from typing import List, Dict, Self, Union, Optional
+from typing import List, Dict, Self, Tuple, Union, Optional
 from enum import Enum
 from pydantic import BaseModel, Field, ValidationInfo,  field_validator, ConfigDict
 from edge.ffmpeg import get_ffmpeg_argument_list, parse_preset_hardware_acceleration_scale, parse_preset_input, parse_preset_hardware_acceleration_decode
@@ -224,6 +224,11 @@ class CameraConfig(EdgeBaseModel):
     def frame_size(self):
         return self.detect.height * self.detect.width
 
+    @property
+    def frame_shape(self) -> Tuple[int, int]:
+        return (self.detect.width, self.detect.height)
+
+    @property
     def ffmpeg_cmd(self):
         return self._build_ffmpeg_cmd(self.source)
 

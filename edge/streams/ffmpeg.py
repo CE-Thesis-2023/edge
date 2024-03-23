@@ -8,13 +8,13 @@ logger = logging.getLogger(__name__)
 
 
 def stop_ffmpeg(logger: Logger, ffmpeg_process: sp.Popen):
-    logger.info("Stopping ffmpeg process")
+    logger.info("Stopping FFmpeg process")
     ffmpeg_process.terminate()
     try:
-        logger.debug("Waiting for ffmpeg process to finish")
-        ffmpeg_process.communicate(timeout=30)
+        logger.info("Waiting for FFmpeg process to finish")
+        ffmpeg_process.communicate(timeout=5)
     except sp.TimeoutExpired:
-        logger.info("Timeout expired, killing ffmpeg process")
+        logger.info("Timeout expired, killing ffmFFmpegpeg process")
         ffmpeg_process.kill()
         ffmpeg_process.communicate()
     logger.info("FFmpeg process stopped")
@@ -31,6 +31,7 @@ def start_or_restart_ffmpeg(
         ffmpeg_process = stop_ffmpeg(
             logger=logger, ffmpeg_process=ffmpeg_process)
 
+    logger.info(f"Starting FFmpeg with command: {ffmpeg_cmd}")
     if frame_size is None:
         # FFmpeg is probably not going to output any frames
         process = sp.Popen(

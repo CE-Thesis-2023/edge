@@ -74,13 +74,13 @@ class PresetsInputType(str, Enum):
 
 PRESETS_INPUT = {
     PresetsInputType.RTSP_GENERIC: [
-        Parameters("-avoid_negative_ts", "make_zero"),
-        Parameters("-fflags", "nobuffer"),
-        Parameters("-flags", "low_delay"),
-        Parameters("-fflags", "+genpts+discardcorrupt"),
-        Parameters("-rw_timeout", "5000000"),
-        Parameters("-use_wallclock_as_timestamps", "1"),
-        Parameters("-f", "live_flv")
+        "-avoid_negative_ts", "make_zero",
+        "-fflags", "nobuffer",
+        "-flags", "low_delay",
+        "-fflags", "+genpts+discardcorrupt",
+        "-rw_timeout", "5000000",
+        "-use_wallclock_as_timestamps", "1",
+        "-f", "live_flv",
     ],
     PresetsInputType.MP4_GENERIC: [
     ]
@@ -180,7 +180,7 @@ def autodetect_hwaccel() -> Tuple[HardwareAccelationScaleType, HardwareAccelerat
 
 
 def get_ffmpeg_argument_list(arg: Any) -> List[str]:
-    if arg is isinstance(arg, List):
+    if isinstance(arg, list) is True:
         return arg
     else:
         return shlex.split(arg)

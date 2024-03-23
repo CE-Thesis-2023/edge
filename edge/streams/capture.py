@@ -7,34 +7,15 @@ import multiprocessing as mp
 import logging
 import multiprocessing as mp
 import subprocess as sp
-from typing import Tuple
+from typing import Dict, Tuple
 import datetime
 import threading
+from edge.config import CameraConfig
 
 from edge.utils.frame import FrameManager, SharedMemoryFrameManager
 from edge.utils.pipe import LogPipe
 
 logger = logging.getLogger(__name__)
-
-
-class CameraCapturerProvider(StreamProviderAPI):
-    def __init__(self) -> None:
-        pass
-
-    def run(self) -> None:
-        fr = EventsPerSecond()
-        fr.start()
-        starttime = time.monotonic()
-        while True:
-            print(fr.eps())
-            time.sleep(2.0 - ((time.monotonic() - starttime) % 2.0))
-            fr.update()
-
-    def stop(self) -> None:
-        return
-
-    def restart_ffmpeg(self) -> None:
-        return
 
 
 class FrameCollector():
@@ -63,9 +44,9 @@ class FrameCollector():
 
     def run(self) -> None:
         logger.info(f"Starting frame collector for {self.source_name}")
-        fr = self.frame_counter.start()
+        self.frame_counter.start()
         self.skipped_frame_counter.start()
-        while True:
+        while not self.stop_event.is_set():
             self.fps.value = self.frame_counter.eps()
             self.skipped_fps.value = self.skipped_frame_counter.eps()
             self.current_frame.value = datetime.datetime.now().timestamp()
@@ -77,6 +58,8 @@ class FrameCollector():
             except Exception:
                 # shutdown has been initiated
                 if self.stop_event.is_set():
+                    logger.info(
+                        f"{self.source_name}: Frame collector exit requested")
                     break
                 logger.error(
                     f"{self.source_name}: Error reading frame from FFmpeg process")
@@ -96,11 +79,7 @@ class FrameCollector():
                     f"{self.source_name}: Error putting frame in queue")
                 self.skipped_frame_counter.update()
                 self.fm.delete(name=frame_name)
-        return
-
-    def stop(self) -> None:
-        self.stop_event.set()
-        self.skipped_frame_counter
+        logger.info(f"{self.source_name}: Frame collector exited")
         return
 
 
@@ -141,7 +120,7 @@ class FrameCapturer(threading.Thread):
         c.run()
 
 
-class PreRecordedProvider(StreamProviderAPI):
+class PreRecordedProvider(StreamProviderAPI, threading.Thread):
     # Runs and manages the lifecycle of the FFmpeg process
     # Initialize the Capturer thread
     def __init__(self,
@@ -150,7 +129,9 @@ class PreRecordedProvider(StreamProviderAPI):
                  skipped_fps: mp.Value,
                  stop_event: mp.Event,
                  ffmpeg_pid: int,
+                 configs: CameraConfig,
                  frame_queue: mp.Queue) -> None:
+        threading.Thread.__init__(self)
         self.frame_queue = frame_queue
         self.source_name = source_name
         self.camera_fps = camera_fps
@@ -160,12 +141,15 @@ class PreRecordedProvider(StreamProviderAPI):
         self.ffmpeg_provider_process = None
         self.log_pipe = LogPipe(log_name=f"ffmpeg:{source_name}.provider")
         self.ffmpeg_pid = ffmpeg_pid
-        self.frame_shape = (640, 480)
+        self.frame_shape = configs.frame_shape
         self.frame_size = self.frame_shape[0] * self.frame_shape[1]
-        self.retry_interval = 5.0
+        self.retry_interval = configs.source.ffmpeg.retry_interval
+        self.configs = configs
 
     def run(self) -> None:
+        logger.info("PreRecordedProvider starting")
         self.start_ffmpeg()
+
         time.sleep(self.retry_interval)
         while not self.stop_event.wait(timeout=self.retry_interval):
             now = datetime.datetime.now().timestamp()
@@ -207,7 +191,7 @@ class PreRecordedProvider(StreamProviderAPI):
 
     def start_ffmpeg(self) -> None:
         logger.info(f"Starting FFmpeg for {self.source_name}")
-        ffmpeg_cmd = ""  # TODO: Add ffmpeg command
+        ffmpeg_cmd = self.configs.ffmpeg_cmd
         self.ffmpeg_provider_process = start_or_restart_ffmpeg(
             ffmpeg_cmd=ffmpeg_cmd,
             logger=logger,
@@ -225,22 +209,47 @@ class PreRecordedProvider(StreamProviderAPI):
             stop_event=self.stop_event
         )
         self.capturer_thread.start()
-        logger.debug(f"Started Capturer thread for {self.source_name}")
+        logger.info(f"Started Capturer thread for {self.source_name}")
 
     def stop(self) -> None:
-        stop_ffmpeg(logger=logger, ffmpeg_process=self.ffmpeg_provider_process)
+        while not self.frame_queue.empty():
+            self.frame_queue.get_nowait()
+        stop_ffmpeg(
+            logger=logger,
+            ffmpeg_process=self.ffmpeg_provider_process)
         self.log_pipe.close()
+        logging.info("PreRecordedProvider stopped")
 
 
-def run_capturer(capturer: StreamProviderAPI):
-    print("Capturer process started")
+def run_capturer(
+        name: str,
+        config: CameraConfig,
+        frame_queue: mp.Queue,
+        camera_fps: mp.Value,
+        skipped_fps: mp.Value,
+        ffmpeg_pid: mp.Value):
+    logger.info("Capturer process started")
+
+    exit_signal = mp.Event()
 
     def on_exit(_, __):
-        capturer.stop()
-        print("Capturer process exiting")
+        exit_signal.set()
+        logger.info("Capturer process exiting")
 
     signal.signal(signal.SIGINT, on_exit)
     signal.signal(signal.SIGTERM, on_exit)
 
-    capturer.run()
-    print("Capturer process exited")
+    capturer = PreRecordedProvider(
+        source_name=name,
+        configs=config,
+        stop_event=exit_signal,
+        frame_queue=frame_queue,
+        camera_fps=camera_fps,
+        skipped_fps=skipped_fps,
+        ffmpeg_pid=ffmpeg_pid,
+    )
+
+    capturer.start()
+    capturer.join()
+
+    logger.info("Capturer process exited")
