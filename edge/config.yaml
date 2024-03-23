@@ -1,0 +1,12 @@
+cameras:
+  test_video:
+    enabled: true
+    best_image_timeout: 10
+    source:
+      path: '../../tests/src/video.mp4'
+      ffmpeg:
+        retry_interval: 5.0
+    detect:
+      height: 320
+      width: 320
+      fps: 10

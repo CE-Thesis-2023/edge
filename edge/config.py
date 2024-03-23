@@ -1,5 +1,9 @@
-from typing import List, Dict, Union, Optional, Enum
+from typing import List, Dict, Self, Union, Optional
+from enum import Enum
 from pydantic import BaseModel, Field, ValidationInfo,  field_validator, ConfigDict
+from edge.ffmpeg import get_ffmpeg_argument_list, parse_preset_hardware_acceleration_scale, parse_preset_input, parse_preset_hardware_acceleration_decode
+from yaml import load, CLoader as Loader
+import json
 
 FFMPEG_DEFAULT_GLOBAL_ARGS = ["-hide_banner",
                               "-loglevel", "warning", "-threads", "2"]
@@ -9,7 +13,7 @@ class EdgeBaseModel(BaseModel):
     model_config = ConfigDict(extra="forbid", protected_namespaces={})
 
 
-class FfmpegConfig():
+class FfmpegConfig(BaseModel):
     global_args: Union[str, List[str]] = Field(
         default=FFMPEG_DEFAULT_GLOBAL_ARGS,
         title="Global FFMPEG arguments")
@@ -34,7 +38,7 @@ class CameraInput(EdgeBaseModel):
         title="Input Path",
         description="The path to the camera input")
     ffmpeg: FfmpegConfig = Field(
-        default=FfmpegConfig(),
+        default_factory=FfmpegConfig,
         title="FFMPEG Configuration",
         description="The FFMPEG configuration for the camera input")
 
@@ -211,6 +215,52 @@ class CameraConfig(EdgeBaseModel):
         default=None,
         title="Input Configuration",
         description="The input configuration for the camera")
+    detect: DetectConfig = Field(
+        default_factory=DetectConfig,
+        title="Object detection configs"
+    )
+
+    @property
+    def frame_size(self):
+        return self.detect.height * self.detect.width
+
+    def ffmpeg_cmd(self):
+        return self._build_ffmpeg_cmd(self.source)
+
+    def _build_ffmpeg_cmd(self, input: CameraInput) -> List[str]:
+        scale_detect_args = parse_preset_hardware_acceleration_scale(
+            args=input.ffmpeg.hwaccel_args,
+            extra_args=[],
+            fps=self.detect.fps,
+            width=self.detect.width,
+            height=self.detect.height
+        )
+        if len(scale_detect_args) == 0:
+            return None
+        input_args = get_ffmpeg_argument_list(
+            arg=parse_preset_input(args=input.ffmpeg.input_args)
+        )
+        global_args = get_ffmpeg_argument_list(
+            arg=input.ffmpeg.global_args,
+        )
+        decode_args = get_ffmpeg_argument_list(
+            arg=parse_preset_hardware_acceleration_decode(
+                args=input.ffmpeg.hwaccel_args,
+                extra_args=[],
+                fps=self.detect.fps,
+                width=self.detect.width,
+                height=self.detect.height
+            )
+        )
+        cmd = (
+            ["ffmpeg"]
+            + global_args
+            + decode_args
+            + input_args
+            + ["-i", input.path]
+            + scale_detect_args
+        )
+        return [part for part in cmd if part != ""]
 
 
 class InputTensorEnum(str, Enum):
@@ -275,3 +325,19 @@ class EdgeConfig(EdgeBaseModel):
         default_factory=ModelConfig,
         title="Model Configuration",
         description="The model configuration for the edge")
+
+    @classmethod
+    def parse_file(cls, config_file: str) -> Self:
+        with open(config_file) as f:
+            raw: str = f.read()
+            if raw is None:
+                raise Exception("unable to read configuration file")
+        if config_file.endswith(".yaml"):
+            config = load(stream=raw, Loader=Loader)
+            if config is None:
+                raise Exception("unable to read configuration file as YAML")
+        elif config_file.endswith(".json"):
+            config = json.loads(raw)
+            if config is None:
+                raise Exception("unable to read configuration file as JSON")
+        return cls.model_validate(obj=config)
