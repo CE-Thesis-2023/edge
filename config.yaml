@@ -3,10 +3,10 @@ cameras:
     enabled: true
     best_image_timeout: 10
     source:
-      path: '/home/nguyentt/Projects/edge/tests/src/video.mp4'
+      path: 'rtsp://localhost:8554/debug_stream'
       ffmpeg:
         retry_interval: 5.0
-        input_args: mp4_generic
+        input_args: rtsp_generic
         hwaccel_args: va_api
     detect:
       height: 320

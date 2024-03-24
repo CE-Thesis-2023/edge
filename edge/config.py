@@ -8,6 +8,13 @@ import json
 FFMPEG_DEFAULT_GLOBAL_ARGS = ["-hide_banner",
                               "-loglevel", "warning", "-threads", "2"]
 
+FFMPEG_DEFAULT_OUTPUTS_ARGS = ["-threads",
+                               "2",
+                               "-f",
+                               "rawvideo",
+                               "-pix_fmt",
+                               "yuv420p"]
+
 
 class EdgeBaseModel(BaseModel):
     model_config = ConfigDict(extra="forbid", protected_namespaces={})
@@ -24,7 +31,7 @@ class FfmpegConfig(BaseModel):
         default="",
         title="FFMPEG Input Arguments")
     output_args: Union[str, List[str]] = Field(
-        default="",
+        default=FFMPEG_DEFAULT_OUTPUTS_ARGS,
         title="FFMPEG Output Arguments")
     retry_interval: float = Field(
         default=5.0,
@@ -240,8 +247,9 @@ class CameraConfig(EdgeBaseModel):
             width=self.detect.width,
             height=self.detect.height
         )
-        if len(scale_detect_args) == 0:
-            return None
+        output_args = get_ffmpeg_argument_list(
+            arg=input.ffmpeg.output_args,
+        )
         input_args = get_ffmpeg_argument_list(
             arg=parse_preset_input(args=input.ffmpeg.input_args)
         )
@@ -261,9 +269,10 @@ class CameraConfig(EdgeBaseModel):
             ["ffmpeg"]
             + global_args
             + decode_args
-            + ["-i", input.path]
             + input_args
+            + ["-i", input.path]
             + scale_detect_args
+            + output_args
             + ["pipe:"]
         )
         return [part for part in cmd if part != ""]

@@ -1,4 +1,3 @@
-from hanging_threads import start_monitoring
 from loguru import logger
 import os
 from edge.streams.capture import run_capturer
@@ -13,9 +12,6 @@ from edge.utils.configs import ConfigChangeHandler
 from edge.config import EdgeConfig
 
 DEFAULT_CONFIG_FILE = "./config.yaml"
-
-start_monitoring(seconds_frozen=10, test_interval=100)
-
 
 class EdgeProcessor:
     def __init__(self) -> None:

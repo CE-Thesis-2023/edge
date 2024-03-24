@@ -74,18 +74,20 @@ class PresetsInputType(str, Enum):
 
 PRESETS_INPUT = {
     PresetsInputType.RTSP_GENERIC: [
-        "-avoid_negative_ts", "make_zero",
-        "-fflags", "nobuffer",
-        "-flags", "low_delay",
-        "-fflags", "+genpts+discardcorrupt",
-        "-rw_timeout", "5000000",
-        "-use_wallclock_as_timestamps", "1",
-        "-f", "live_flv",
+        "-avoid_negative_ts",
+        "make_zero",
+        "-fflags",
+        "+genpts+discardcorrupt",
+        "-rtsp_transport",
+        "tcp",
+        "-timeout",
+        "5000000",
+        "-use_wallclock_as_timestamps",
+        "1",
     ],
     PresetsInputType.MP4_GENERIC: [
         "-fflags", "+genpts+discardcorrupt",
         "-rw_timeout", "5000000",
-        "-f", "rawvideo",
     ]
 }
 
