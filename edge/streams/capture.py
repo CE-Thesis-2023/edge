@@ -71,7 +71,7 @@ class FrameCollector():
                 continue
             self.frame_counter.update()
             try:
-                # self.frame_queue.put(obj=self.current_frame.value, block=False)
+                self.frame_queue.put(obj=self.current_frame.value, block=False)
                 self.fm.close(name=frame_name)
             except Exception:
                 logger.error(
@@ -218,37 +218,3 @@ class PreRecordedProvider(StreamProviderAPI, threading.Thread):
             ffmpeg_process=self.ffmpeg_provider_process)
         self.log_pipe.close()
         logger.info("PreRecordedProvider stopped")
-
-
-def run_capturer(
-        name: str,
-        config: CameraConfig,
-        frame_queue: mp.Queue,
-        camera_fps: mp.Value,
-        skipped_fps: mp.Value,
-        ffmpeg_pid: mp.Value):
-    logger.info("Capturer process started")
-
-    exit_signal = mp.Event()
-
-    def on_exit(_, __):
-        exit_signal.set()
-        logger.info("Capturer process exiting")
-
-    signal.signal(signal.SIGINT, on_exit)
-    signal.signal(signal.SIGTERM, on_exit)
-
-    capturer = PreRecordedProvider(
-        source_name=name,
-        configs=config,
-        stop_event=exit_signal,
-        frame_queue=frame_queue,
-        camera_fps=camera_fps,
-        skipped_fps=skipped_fps,
-        ffmpeg_pid=ffmpeg_pid,
-    )
-
-    capturer.start()
-    capturer.join()
-
-    logger.info("Capturer process exited")

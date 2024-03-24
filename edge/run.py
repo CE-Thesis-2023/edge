@@ -1,7 +1,8 @@
 from loguru import logger
 import os
-from edge.streams.capture import run_capturer
-from edge.motion.default import DefaultMotionDetector, MotionDetectionProcess, run_motion_detector
+from edge.capture import run_capturer
+from edge.motion.default import DefaultMotionDetector, MotionDetectionProcess
+from edge.video import run_camera_processor
 import multiprocessing as mp
 import signal
 import time
@@ -11,7 +12,9 @@ from watchdog.events import LoggingEventHandler
 from edge.utils.configs import ConfigChangeHandler
 from edge.config import EdgeConfig
 
+
 DEFAULT_CONFIG_FILE = "./config.yaml"
+
 
 class EdgeProcessor:
     def __init__(self) -> None:
@@ -36,8 +39,8 @@ class EdgeProcessor:
 
             self.read_configs()
 
-            self.init_detectors()
             self.init_capturers()
+            self.init_detectors()
 
             self.start_capturers()
             self.start_detectors()
@@ -60,6 +63,7 @@ class EdgeProcessor:
                 "ffmpeg_pid": mp.Value("i", 0),
                 "frame_queue": mp.Queue(maxsize=50),
                 "capturer_process": None,
+                "detector_process": None,
                 "camera_config": config,
             }
 
@@ -128,11 +132,35 @@ class EdgeProcessor:
             self.capturer_info[name]["capturer_process"] = proc
             logger.info(f"Initialized capturer process {name}")
 
+    def init_detectors(self) -> None:
+        for name, camera in self.configs.cameras.items():
+            if not camera.enabled:
+                logger.info(f"Camera {name} is disabled, skipping detectors")
+                continue
+            i = self.capturer_info[name]
+            proc = mp.Process(
+                name=f"detector:{name}",
+                target=run_camera_processor,
+                args=(name, camera,
+                      i["frame_queue"],
+                      i["camera_fps"],
+                      i["skipped_fps"])
+            )
+            proc.daemon = True
+            self.capturer_info[name]["detector_process"] = proc
+            logger.info(f"Initialized detector process {name}")
+
     def start_capturers(self) -> None:
         for name, info in self.capturer_info.items():
             p = info["capturer_process"]
             p.start()
             logger.info(f"Capturer started for camera {name} PID={p.pid}")
+
+    def start_detectors(self) -> None:
+        for name, info in self.capturer_info.items():
+            p = info["detector_process"]
+            p.start()
+            logger.info(f"Detector started for camera {name} PID={p.pid}")
 
     def stop_capturers(self) -> None:
         for name, info in self.capturer_info.items():
@@ -140,16 +168,11 @@ class EdgeProcessor:
             p.terminate()
             logger.info(f"Capturer stopped for camera {name} PID={p.pid}")
 
-    def start_detectors(self) -> None:
-        # self.motion_proc = mp.Process(
-        #     name="edge.MotionDetector",
-        #     target=run_motion_detector,
-        #     args=(self.motion,))
-        # self.motion_proc.start()
-        return
-
     def stop_detectors(self) -> None:
-        # self.motion_proc.terminate()
+        for name, info in self.capturer_info.items():
+            p = info["detector_process"]
+            p.terminate()
+            logger.info(f"Detector stopped for camera {name} PID={p.pid}")
         return
 
     def reload(self) -> None:

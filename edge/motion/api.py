@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 
 
-class MotionDetectorApi(ABC):
+class MotionDetectorAPI(ABC):
     """
     Standard interface for motion detection
     """

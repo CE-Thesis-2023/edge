@@ -1,10 +1,15 @@
 import queue
-from edge.motion.api import MotionDetectorApi
+from typing import Tuple
+from edge.motion.api import MotionDetectorAPI
 import multiprocessing as mp
 import signal
+from loguru import logger
+import threading
+from edge.utils.events import EventsPerSecond
+from edge.utils.frame import FrameManager
 
 
-class DefaultMotionDetector(MotionDetectorApi):
+class DefaultMotionDetector(MotionDetectorAPI):
     def __init__(self) -> None:
         pass
 
@@ -16,38 +21,46 @@ class DefaultMotionDetector(MotionDetectorApi):
         return
 
 
-class MotionDetectionProcess():
+class MotionDetectionProcess(threading.Thread):
     def __init__(self,
-                 fq: mp.Queue,
-                 detector: MotionDetectorApi) -> None:
-        self.fq = fq
+                 camera_name: str,
+                 frame_queue: mp.Queue,
+                 stop_event: mp.Event,
+                 frame_manager: FrameManager,
+                 frame_shape: Tuple[int, int],
+                 detector: MotionDetectorAPI) -> None:
+        self.camera_name = camera_name
+        self.frame_queue = frame_queue
         self.detector = detector
-        self._shutdown = False
+        self.stop_event = stop_event
+        self.frame_manager = frame_manager
+        self.frame_shape = frame_shape
+        self.fps_counter = EventsPerSecond(max_events=1000)
 
     def run(self):
-        while not self._shutdown:
+        logger.info("Motion detection process started")
+        self.fps_counter.start()
+        shape = (self.frame_shape[0] * 3 // 2, self.frame_shape[1])
+
+        while not self.stop_event.is_set():
+            fps = self.fps_counter.eps()
+
+            logger.info(f"Motion detection process FPS: {fps}")
             try:
-                frame = self.fq.get(timeout=1)
+                frame_time = self.frame_queue.get(timeout=1)
+                k = f"{self.camera_name}@{frame_time}"
+                frame = self.frame_manager.get(name=k, shape=shape)
+                self.fps_counter.update()
             except queue.Empty:
+                logger.error("Frame queue is empty")
+                continue
+            if frame is None:
+                logger.error("Frame is not found in the frame manager")
                 continue
             self.detector.detect(frame)
 
+        logger.info("Motion detection process stopped")
         return
 
     def stop(self):
-        self._shutdown = True
-
-
-def run_motion_detector(
-        detector: MotionDetectionProcess):
-    print("Motion detection process started")
-
-    def on_exit(_, __):
-        detector.stop()
-        print("Motion detector exiting")
-
-    signal.signal(signal.SIGINT, on_exit)
-    signal.signal(signal.SIGTERM, on_exit)
-
-    detector.run()
-    print("Motion detection process exited")
+        return
