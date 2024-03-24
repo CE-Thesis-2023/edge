@@ -1,6 +1,7 @@
 from abc import ABC, abstractmethod
 from typing import AnyStr
 from multiprocessing import shared_memory
+from loguru import logger
 import numpy as np
 
 

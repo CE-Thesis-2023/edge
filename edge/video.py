@@ -14,33 +14,39 @@ from edge.utils.frame import FrameManager, SharedMemoryFrameManager
 class CameraDetectorsProcess(threading.Thread):
     def __init__(self,
                  camera_name: str,
+                 config: CameraConfig,
                  frame_queue: mp.Queue,
                  stop_event: mp.Event,
                  frame_manager: FrameManager,
-                 frame_shape: Tuple[int, int],
+                 current_frame: mp.Value,
                  detector: MotionDetectorAPI) -> None:
+        threading.Thread.__init__(self)
         self.camera_name = camera_name
         self.frame_queue = frame_queue
         self.detector = detector
+        self.config = config
         self.stop_event = stop_event
         self.frame_manager = frame_manager
-        self.frame_shape = frame_shape
+        #######################################
+        self.frame_shape = config.frame_shape_yuv
+        #######################################
+        self.current_frame = current_frame
         self.fps_counter = EventsPerSecond(max_events=1000)
 
     def run(self):
         logger.info("Motion detection process started")
         self.fps_counter.start()
-        shape = (self.frame_shape[0] * 3 // 2, self.frame_shape[1])
+        shape = self.frame_shape
 
         while not self.stop_event.is_set():
             fps = self.fps_counter.eps()
 
             logger.info(f"Motion detection process FPS: {fps}")
             try:
-                frame_time = self.frame_queue.get(timeout=1)
-                k = f"{self.camera_name}@{frame_time}"
+                frame_time = self.frame_queue.get(True)
+                self.current_frame.value = frame_time
+                k = f"{self.camera_name}{frame_time}"
                 frame = self.frame_manager.get(name=k, shape=shape)
-                self.fps_counter.update()
             except queue.Empty:
                 logger.error("Frame queue is empty")
                 continue
@@ -48,6 +54,8 @@ class CameraDetectorsProcess(threading.Thread):
                 logger.error("Frame is not found in the frame manager")
                 continue
             self.detector.detect(frame)
+            self.fps_counter.update()
+            self.frame_manager.close(k)
 
         logger.info("Motion detection process stopped")
         return
@@ -60,6 +68,7 @@ def run_camera_processor(
         name: str,
         config: CameraConfig,
         frame_queue: mp.Queue,
+        current_frame: mp.Value,
         camera_fps: mp.Value,
         skipped_fps: mp.Value):
     exit_signal = mp.Event()
@@ -75,11 +84,12 @@ def run_camera_processor(
 
     motion_proc = CameraDetectorsProcess(
         stop_event=exit_signal,
+        config=config,
         detector=DefaultMotionDetector(),
         frame_queue=frame_queue,
         frame_manager=frame_manager,
-        frame_shape=config.frame_shape,
         camera_name=name,
+        current_frame=current_frame
     )
 
     motion_proc.start()

@@ -14,7 +14,6 @@ class DefaultMotionDetector(MotionDetectorAPI):
         pass
 
     def detect(self, frame):
-        print("Motion detected!")
         return False
 
     def stop(self):

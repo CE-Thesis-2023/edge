@@ -1,14 +1,13 @@
+import queue
 from loguru import logger
 import os
 from edge.capture import run_capturer
-from edge.motion.default import DefaultMotionDetector, MotionDetectionProcess
 from edge.video import run_camera_processor
 import multiprocessing as mp
 import signal
 import time
 import sys
 from watchdog.observers import Observer
-from watchdog.events import LoggingEventHandler
 from edge.utils.configs import ConfigChangeHandler
 from edge.config import EdgeConfig
 
@@ -65,6 +64,7 @@ class EdgeProcessor:
                 "capturer_process": None,
                 "detector_process": None,
                 "camera_config": config,
+                "detection_frame": mp.Value("d", 0.0)
             }
 
     def init_observers(self) -> None:
@@ -143,6 +143,7 @@ class EdgeProcessor:
                 target=run_camera_processor,
                 args=(name, camera,
                       i["frame_queue"],
+                      i["detection_frame"],
                       i["camera_fps"],
                       i["skipped_fps"])
             )
@@ -187,7 +188,10 @@ class EdgeProcessor:
             q: mp.Queue = capturer["frame_queue"]
             if q is not None:
                 while not q.empty():
-                    q.get_nowait()
+                    try:
+                        q.get_nowait()
+                    except queue.Empty:
+                        break
             q.close()
             logger.info(f"EdgeProcessor: Queue for process {name} cleared")
             if proc is not None:

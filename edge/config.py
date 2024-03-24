@@ -236,6 +236,10 @@ class CameraConfig(EdgeBaseModel):
         return (self.detect.width, self.detect.height)
 
     @property
+    def frame_shape_yuv(self) -> Tuple[int, int]:
+        return self.detect.height * 3 // 2, self.detect.width
+
+    @property
     def ffmpeg_cmd(self):
         return self._build_ffmpeg_cmd(self.source)
 

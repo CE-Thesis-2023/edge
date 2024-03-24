@@ -50,7 +50,7 @@ class FrameCollector():
             self.current_frame.value = datetime.datetime.now().timestamp()
             logger.info(f"FPS: {self.fps.value}")
 
-            frame_name = f"{self.source_name}@{self.current_frame.value}"
+            frame_name = f"{self.source_name}{self.current_frame.value}"
             buffer = self.fm.create(name=frame_name, size=self.frame_size)
             try:
                 buffer[:] = self.ffmpeg_process.stdout.read(self.frame_size)
@@ -94,7 +94,7 @@ class FrameCapturer(threading.Thread):
             skipped_fps: mp.Value,
             stop_event: mp.Event) -> None:
         threading.Thread.__init__(self)
-        self.source_name = f"capturer_{source_name}"
+        self.source_name = source_name
         self.frame_shape = frame_shape
         self.frame_queue = frame_queue
         self.fps: mp.Value = fps
@@ -140,7 +140,9 @@ class PreRecordedProvider(StreamProviderAPI, threading.Thread):
         self.ffmpeg_provider_process = None
         self.log_pipe = LogPipe(log_name=f"ffmpeg:{source_name}.provider")
         self.ffmpeg_pid = ffmpeg_pid
-        self.frame_shape = configs.frame_shape
+        ##################################
+        self.frame_shape = configs.frame_shape_yuv
+        ##################################
         self.frame_size = self.frame_shape[0] * self.frame_shape[1]
         self.retry_interval = configs.source.ffmpeg.retry_interval
         self.configs = configs
