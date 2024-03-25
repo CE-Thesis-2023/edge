@@ -26,7 +26,7 @@ class EdgeProcessor:
             logger.info("EdgeProcessor: Requested exiting")
             self.stop()
             logger.info("EdgeProcessor: Going to sys.exit")
-            sys.exit()
+            sys.exit(0)
 
         self.configure()
 
@@ -167,12 +167,14 @@ class EdgeProcessor:
         for name, info in self.capturer_info.items():
             p = info["capturer_process"]
             p.terminate()
+            p.join()
             logger.info(f"Capturer stopped for camera {name} PID={p.pid}")
 
     def stop_detectors(self) -> None:
         for name, info in self.capturer_info.items():
             p = info["detector_process"]
             p.terminate()
+            p.join()
             logger.info(f"Detector stopped for camera {name} PID={p.pid}")
         return
 

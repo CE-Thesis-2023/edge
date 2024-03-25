@@ -50,10 +50,16 @@ class CameraDetectorsProcess(threading.Thread):
             except queue.Empty:
                 logger.error("Frame queue is empty")
                 continue
+            except Exception as e:
+                logger.error(
+                    f"Error getting frame from the frame manager: {e}")
+                continue
             if frame is None:
                 logger.error("Frame is not found in the frame manager")
                 continue
-            self.detector.detect(frame)
+            motion_boxes = self.detector.detect(frame)
+            logger.debug(f"Motion boxes: {motion_boxes}")
+            
             self.fps_counter.update()
             self.frame_manager.close(k)
 
@@ -82,10 +88,16 @@ def run_camera_processor(
 
     frame_manager = SharedMemoryFrameManager()
 
+    md = DefaultMotionDetector(
+        frame_shape=config.frame_shape_yuv,
+        config=config.motion,
+        fps=config.detect.fps,
+    )
+
     motion_proc = CameraDetectorsProcess(
         stop_event=exit_signal,
         config=config,
-        detector=DefaultMotionDetector(),
+        detector=md,
         frame_queue=frame_queue,
         frame_manager=frame_manager,
         camera_name=name,

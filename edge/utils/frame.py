@@ -55,3 +55,9 @@ class SharedMemoryFrameManager(FrameManager):
             self.shm_store[name].close()
             self.shm_store[name].unlink()
             del self.shm_store[name]
+
+    def cleanup(self):
+        for name in self.shm_store:
+            self.shm_store[name].close()
+            self.shm_store[name].unlink()
+            del self.shm_store[name]

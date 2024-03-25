@@ -187,6 +187,9 @@ class MotionConfig(EdgeBaseModel):
         ge=1,
         le=255,
         description="The threshold for motion detection")
+    lightning_threshold: float = Field(
+        default=0.8, title="Lightning detection threshold (0.3-1.0).", ge=0.3, le=1.0
+    )
     improve_contrast: bool = Field(
         default=True,
         title="Improve Contrast",
@@ -215,7 +218,7 @@ class CameraConfig(EdgeBaseModel):
         title="MQTT Configuration",
         description="The MQTT configuration for the camera")
     motion: Optional[MotionConfig] = Field(
-        default=None,
+        default_factory=MotionConfig,
         title="Motion Configuration",
         description="The motion detection configuration for the camera")
     source: CameraInput = Field(
