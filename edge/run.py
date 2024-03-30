@@ -74,23 +74,31 @@ class Application:
             self.capturers.append(p)
 
     def _init_processors(self):
-        p = mp.Process(
-            target=run_process,
-            args=(self.settings,
-                  self.stopper,
-                  self.frame_queue,
-                  self.event_queue),
-        )
-        self.processors.append(p)
+        cameras = self.settings['cameras']
+        for name, configs in cameras.items():
+            p = mp.Process(
+                target=run_process,
+                args=(
+                    name,
+                    configs,
+                    self.stopper,
+                    self.frame_queue,
+                    self.event_queue),
+            )
+            self.processors.append(p)
 
     def _init_event_capturers(self):
-        p = mp.Process(
-            target=run_event_capture,
-            args=(self.settings,
-                  self.stopper,
-                  self.event_queue),
-        )
-        self.events_capturers.append(p)
+        cameras = self.settings['cameras']
+        for name, configs in cameras.items():
+            p = mp.Process(
+                target=run_event_capture,
+                args=(
+                    name,
+                    configs,
+                    self.stopper,
+                    self.event_queue),
+            )
+            self.events_capturers.append(p)
 
     def _start_capturers(self):
         for p in self.capturers:

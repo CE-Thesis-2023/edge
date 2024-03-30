@@ -13,7 +13,9 @@ def run_capture(
         stopper: mp.Event,
         frame_queue: mp.Queue,
 ):
-    with_settings(settings)
+    with_settings(
+        name=name,
+        settings=settings)
 
     while not stopper.is_set():
         try:
@@ -25,7 +27,9 @@ def run_capture(
     return
 
 
-def with_settings(settings: Dict):
+def with_settings(
+        name: str,
+        settings: Dict):
     source = settings['source']
     ffmpeg_cmd = get_ffmpeg_cmd(source)
-    logging.debug(f"Capturer FFmpeg command: {ffmpeg_cmd}")
+    logging.debug(f"Capturer {name}: FFmpeg command: {ffmpeg_cmd}")
