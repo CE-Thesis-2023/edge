@@ -16,13 +16,6 @@ def run_capturer(
 
     exit_signal = mp.Event()
 
-    def on_exit(_, __):
-        exit_signal.set()
-        logger.info("Capturer process exiting")
-
-    signal.signal(signal.SIGINT, on_exit)
-    signal.signal(signal.SIGTERM, on_exit)
-
     capturer = PreRecordedProvider(
         source_name=name,
         configs=config,
@@ -32,6 +25,13 @@ def run_capturer(
         skipped_fps=skipped_fps,
         ffmpeg_pid=ffmpeg_pid,
     )
+
+    def on_exit(_, __):
+        exit_signal.set()
+        logger.info("Capturer process exiting")
+
+    signal.signal(signal.SIGINT, on_exit)
+    signal.signal(signal.SIGTERM, on_exit)
 
     capturer.start()
     capturer.join()

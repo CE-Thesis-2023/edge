@@ -15,6 +15,8 @@ from edge.config import CameraConfig
 from edge.utils.frame import FrameManager, SharedMemoryFrameManager
 from edge.utils.pipe import LogPipe
 
+import queue
+
 
 class FrameCollector():
     # Registers the frame in a buffer then reads the output from FFmpeg
@@ -39,6 +41,7 @@ class FrameCollector():
         self.fm: FrameManager = frame_manager
         self.frame_counter = EventsPerSecond(max_events=1000)
         self.skipped_frame_counter = EventsPerSecond(max_events=1000)
+        self.fc = 0
 
     def run(self) -> None:
         logger.info(f"Starting frame collector for {self.source_name}")
@@ -49,6 +52,7 @@ class FrameCollector():
             self.skipped_fps.value = self.skipped_frame_counter.eps()
             self.current_frame.value = datetime.datetime.now().timestamp()
             logger.info(f"FPS: {self.fps.value}")
+            logger.info(f"Frames: {self.fc}")
 
             frame_name = f"{self.source_name}{self.current_frame.value}"
             buffer = self.fm.create(name=frame_name, size=self.frame_size)
@@ -73,11 +77,12 @@ class FrameCollector():
             try:
                 self.frame_queue.put(obj=self.current_frame.value, block=False)
                 self.fm.close(name=frame_name)
-            except Exception:
+            except queue.Full:
                 logger.error(
                     f"Error putting frame in queue for {self.source_name}")
                 self.skipped_frame_counter.update()
                 self.fm.delete(name=frame_name)
+            self.fc += 1
         logger.info(f"Frame collector exited for {self.source_name}")
         return
 
@@ -98,7 +103,7 @@ class FrameCapturer(threading.Thread):
         self.frame_shape = frame_shape
         self.frame_queue = frame_queue
         self.fps: mp.Value = fps
-        self.fm: FrameManager = SharedMemoryFrameManager()
+        self.fm = SharedMemoryFrameManager()
         self.stop_event = stop_event
         self.ffmpeg_process = ffmpeg_process
         self.current_frame: mp.Value = mp.Value('d', 0.0)
@@ -117,6 +122,10 @@ class FrameCapturer(threading.Thread):
             stop_event=self.stop_event
         )
         c.run()
+
+    def stop(self) -> None:
+        self.fm.clean()
+        logger.debug(f"FrameCapturer cleaed its SharedMemoryFrameManager")
 
 
 class PreRecordedProvider(StreamProviderAPI, threading.Thread):
@@ -188,6 +197,7 @@ class PreRecordedProvider(StreamProviderAPI, threading.Thread):
                     logger.info("Timeout expired, killing FFmpeg process")
                     self.ffmpeg_provider_process.kill()
                     self.ffmpeg_provider_process.communicate()
+        
         self.stop()
 
     def start_ffmpeg(self) -> None:
@@ -213,10 +223,12 @@ class PreRecordedProvider(StreamProviderAPI, threading.Thread):
         logger.info(f"Started Capturer thread for {self.source_name}")
 
     def stop(self) -> None:
+        self.capturer_thread.stop()
         while not self.frame_queue.empty():
-            self.frame_queue.get_nowait()
+            self.frame_queue.get()
+            logger.info("Emptied frame queue")
+        self.log_pipe.close()
         stop_ffmpeg(
             logger=logger,
             ffmpeg_process=self.ffmpeg_provider_process)
-        self.log_pipe.close()
         logger.info("PreRecordedProvider stopped")

@@ -11,6 +11,8 @@ from watchdog.observers import Observer
 from edge.utils.configs import ConfigChangeHandler
 from edge.config import EdgeConfig
 
+from hanging_threads import start_monitoring
+start_monitoring(seconds_frozen=10, test_interval=100)
 
 DEFAULT_CONFIG_FILE = "./config.yaml"
 
@@ -60,7 +62,7 @@ class EdgeProcessor:
                 "camera_fps": mp.Value("d", 0.0),
                 "skipped_fps": mp.Value("d", 0.0),
                 "ffmpeg_pid": mp.Value("i", 0),
-                "frame_queue": mp.Queue(maxsize=50),
+                "frame_queue": mp.Queue(maxsize=2),
                 "capturer_process": None,
                 "detector_process": None,
                 "camera_config": config,
@@ -187,13 +189,8 @@ class EdgeProcessor:
     def stop(self) -> None:
         for name, capturer in self.capturer_info.items():
             proc = capturer["capturer_process"]
+            det_proc = capturer["detector_process"]
             q: mp.Queue = capturer["frame_queue"]
-            if q is not None:
-                while not q.empty():
-                    try:
-                        q.get_nowait()
-                    except queue.Empty:
-                        break
             q.close()
             logger.info(f"EdgeProcessor: Queue for process {name} cleared")
             if proc is not None:
@@ -201,6 +198,10 @@ class EdgeProcessor:
                     f"EdgeProcessor: Waiting for process {name} to exit")
                 proc.join()
             logger.info(f"EdgeProcessor: Capturer process {name} stopped")
+            if det_proc is not None:
+                logger.info(
+                    f"EdgeProcessor: Waiting for detector process {name} to exit")
+                det_proc.join()
 
     def configure(self) -> None:
         if not os.path.exists(DEFAULT_CONFIG_FILE):

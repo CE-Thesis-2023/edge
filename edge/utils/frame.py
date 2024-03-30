@@ -29,8 +29,11 @@ class FrameManager(ABC):
 class SharedMemoryFrameManager(FrameManager):
     def __init__(self) -> None:
         self.shm_store = {}
+        self.stopped = False
 
     def create(self, name: str, size) -> AnyStr:
+        if self.stopped:
+            return None
         shm = shared_memory.SharedMemory(name=name, create=True, size=size)
         self.shm_store[name] = shm
         return shm.buf
@@ -46,18 +49,22 @@ class SharedMemoryFrameManager(FrameManager):
     # Another process might need the shared memory, use close
     def close(self, name: str):
         if name in self.shm_store:
-            self.shm_store[name].close()
+            shm: shared_memory.SharedMemory = self.shm_store[name]
+            shm.close()
             del self.shm_store[name]
 
     # Delete the shared memory, use delete
     def delete(self, name: str):
         if name in self.shm_store:
-            self.shm_store[name].close()
-            self.shm_store[name].unlink()
+            shm: shared_memory.SharedMemory = self.shm_store[name]
+            shm.close()
+            shm.unlink()
             del self.shm_store[name]
 
-    def cleanup(self):
-        for name in self.shm_store:
-            self.shm_store[name].close()
-            self.shm_store[name].unlink()
-            del self.shm_store[name]
+    def clean(self):
+        self.stopped = True
+        for shm in self.shm_store.values():
+            shm.close()
+            shm.unlink()
+            logger.debug(f"Shared memory {shm.name} unlinked")
+        self.shm_store.clear()
