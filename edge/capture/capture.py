@@ -23,20 +23,13 @@ def run_capture(
     with_settings(
         name=name,
         settings=settings)
-
-    event = threading.Event()
     provider = VideoStreamProvider(
         name=name,
         settings=settings,
         frame_queue=frame_queue,
-        event=event,
+        event=stopper,
     )
     provider.start()
-    while True:
-        if stopper.is_set():
-            logging.debug(f"{name} Capturer stop request received")
-            provider.stop()
-            break
     if provider.is_alive():
         provider.join()
     logging.debug(f"{name} Capturer stopped")
@@ -55,7 +48,7 @@ class VideoStreamProvider(threading.Thread):
     def __init__(self,
                  name: str,
                  settings: Dict,
-                 event: threading.Event,
+                 event: mp.Event,
                  frame_queue: mp.Queue):
         threading.Thread.__init__(self)
         self.name = name
@@ -77,6 +70,7 @@ class VideoStreamProvider(threading.Thread):
     def start(self):
         self.start_all()
         self.watch()
+        self.stop()
         return
 
     def watch(self):
@@ -88,13 +82,11 @@ class VideoStreamProvider(threading.Thread):
                 logging.debug(f"{self.name} Restarting Capturer")
                 self.start_all()
             time.sleep(2)
-        logging.debug(f"{self.name} Capturer watch stopped")
         return
 
     def start_all(self):
         self.start_ffmpeg()
         self.start_capturer()
-        self.stop()
 
     def start_ffmpeg(self):
         cmd = get_ffmpeg_cmd(self.settings['source'])
@@ -122,8 +114,8 @@ class VideoStreamProvider(threading.Thread):
         return
 
     def stop(self):
-        self._stopped.set()
         self.capturer: FrameCollectorThread
+        self.log_pipe.close()
         if self.capturer.is_alive():
             self.capturer.join(timeout=30)
         return
@@ -136,7 +128,7 @@ class FrameCollector:
                  shape: Tuple[int, int],
                  name: str,
                  frames: mp.Queue,
-                 stop_event: threading.Event,
+                 stop_event: mp.Event,
                  manager: SharedMemoryFrameManager):
         self.fps = fps
         self.ffmpeg_proc = ffmpeg_proc
