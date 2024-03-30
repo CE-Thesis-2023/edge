@@ -1,6 +1,9 @@
 import multiprocessing as mp
 import signal
+import sys
 import time
+
+import picologging as logging
 
 from edge.capture.capture import run_capture
 from edge.event.event import run_event_capture
@@ -19,7 +22,7 @@ class Application:
     def run(self):
         def stop(_, __):
             self.stopper.set()
-            print("Stopping...")
+            logging.info("Stopping...")
 
         signal.signal(signal.SIGINT, stop)
         signal.signal(signal.SIGTERM, stop)
@@ -28,6 +31,8 @@ class Application:
         self._stop()
 
     def _init(self):
+        logging.basicConfig(level=logging.DEBUG,
+                            stream=sys.stdout)
         self.frame_queue = mp.Queue(maxsize=2)
 
         self._init_capturers()
