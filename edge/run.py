@@ -8,6 +8,7 @@ import picologging as logging
 from edge.capture.capture import run_capture
 from edge.event.event import run_event_capture
 from edge.process.process import run_process
+from edge.settings import load, validate, with_defaults
 
 
 class Application:
@@ -18,6 +19,7 @@ class Application:
         self.events_capturers = []
         self.frame_queue = None
         self.event_queue = None
+        self.settings = None
         return
 
     def run(self):
@@ -37,7 +39,16 @@ class Application:
                             stream=sys.stdout)
         self.frame_queue = mp.Queue(maxsize=2)
         self.event_queue = mp.Queue(maxsize=2)
-
+        self.settings = load("./configs.yaml")
+        errs = validate(self.settings)
+        if errs:
+            for key, value in errs.items():
+                logging.error(f"Configuration error: {key}: {value}")
+            sys.exit(1)
+        else:
+            logging.info("Configuration is valid")
+        self.settings = with_defaults(self.settings)
+        logging.debug(f"Configurations: {self.settings}")
         self._init_capturers()
         self._init_processors()
         self._init_event_capturers()
@@ -53,7 +64,8 @@ class Application:
     def _init_capturers(self):
         p = mp.Process(
             target=run_capture,
-            args=(self.stopper,
+            args=(self.settings,
+                  self.stopper,
                   self.frame_queue),
         )
         self.capturers.append(p)
@@ -61,7 +73,8 @@ class Application:
     def _init_processors(self):
         p = mp.Process(
             target=run_process,
-            args=(self.stopper,
+            args=(self.settings,
+                  self.stopper,
                   self.frame_queue,
                   self.event_queue),
         )
@@ -70,7 +83,8 @@ class Application:
     def _init_event_capturers(self):
         p = mp.Process(
             target=run_event_capture,
-            args=(self.stopper,
+            args=(self.settings,
+                  self.stopper,
                   self.event_queue),
         )
         self.events_capturers.append(p)

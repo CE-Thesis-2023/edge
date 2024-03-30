@@ -1,0 +1,11 @@
+cameras:
+  looper:
+    best_image_timeout: 10
+    source:
+      path: 'rtsp://localhost:8554/debug_stream'
+      input-args: 'rtsp-generic'
+      hardware-acceleration: 'va-api'
+    detect:
+      height: 320
+      width: 320
+      fps: 10

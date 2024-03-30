@@ -1,8 +1,11 @@
 import logging
 import multiprocessing as mp
 
+from typing import Dict
+
 
 def run_process(
+        settings: Dict,
         stopper: mp.Event,
         frame_queue: mp.Queue,
         event_queue: mp.Queue,

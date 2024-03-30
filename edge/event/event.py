@@ -1,9 +1,11 @@
 import multiprocessing as mp
+from typing import Dict
 
 import picologging as logging
 
 
 def run_event_capture(
+        settings: Dict,
         stopper: mp.Event,
         event_queue: mp.Queue,
 ):
