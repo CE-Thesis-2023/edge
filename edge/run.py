@@ -36,6 +36,8 @@ class Application:
 
     def _init(self):
         logging.basicConfig(level=logging.DEBUG,
+                            format="%(asctime)s [%(filename)s:%(lineno)d]\t %(message)s",
+                            datefmt="%Y-%m-%d %H:%M:%S",
                             stream=sys.stdout)
         self.frame_queue = mp.Queue(maxsize=2)
         self.event_queue = mp.Queue(maxsize=2)
