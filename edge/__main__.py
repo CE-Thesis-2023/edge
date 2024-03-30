@@ -1,5 +1,5 @@
-from edge.run import EdgeProcessor
+from edge.run import Application
 
 if __name__ == "__main__":
-    p = EdgeProcessor()
-    p.start()
+    app = Application()
+    app.run()
