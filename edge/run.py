@@ -17,6 +17,7 @@ class Application:
         self.processors = []
         self.events_capturers = []
         self.frame_queue = None
+        self.event_queue = None
         return
 
     def run(self):
@@ -27,6 +28,7 @@ class Application:
         signal.signal(signal.SIGINT, stop)
         signal.signal(signal.SIGTERM, stop)
 
+        self._init()
         self._run()
         self._stop()
 
@@ -34,15 +36,16 @@ class Application:
         logging.basicConfig(level=logging.DEBUG,
                             stream=sys.stdout)
         self.frame_queue = mp.Queue(maxsize=2)
+        self.event_queue = mp.Queue(maxsize=2)
 
         self._init_capturers()
         self._init_processors()
-        self._init_event_capturer()
+        self._init_event_capturers()
 
     def _run(self):
         self._start_capturers()
         self._start_processors()
-        # self._start_event_capturer()
+        self._start_event_capturers()
 
         while not self.stopper.is_set():
             time.sleep(1)
@@ -59,15 +62,16 @@ class Application:
         p = mp.Process(
             target=run_process,
             args=(self.stopper,
-                  self.frame_queue),
+                  self.frame_queue,
+                  self.event_queue),
         )
         self.processors.append(p)
 
-    def _init_event_capturer(self):
+    def _init_event_capturers(self):
         p = mp.Process(
             target=run_event_capture,
             args=(self.stopper,
-                  self.frame_queue),
+                  self.event_queue),
         )
         self.events_capturers.append(p)
 
@@ -79,7 +83,7 @@ class Application:
         for p in self.processors:
             p.start()
 
-    def _start_event_capturer(self):
+    def _start_event_capturers(self):
         for p in self.events_capturers:
             p.start()
 
@@ -88,6 +92,6 @@ class Application:
             p.join()
         for p in self.processors:
             p.join()
-        # for p in self.events_capturer:
-        #     p.join()
+        for p in self.events_capturers:
+            p.join()
         return
