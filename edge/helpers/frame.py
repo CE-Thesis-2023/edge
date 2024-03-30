@@ -1,4 +1,3 @@
-from collections import deque
 from multiprocessing import shared_memory
 from typing import Any
 
@@ -8,8 +7,6 @@ import numpy as np
 class SharedMemoryFrameManager:
     def __init__(self) -> None:
         self.shm_store = {}
-        self.closed = deque()
-        self.closed_count = 0
         self.stopped = False
 
     def create(self, name: str, size) -> Any:

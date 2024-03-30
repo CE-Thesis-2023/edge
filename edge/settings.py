@@ -1,4 +1,4 @@
-from typing import Dict
+from typing import Dict, Tuple
 
 import yaml
 from cerberus import Validator
@@ -139,3 +139,9 @@ def get_ffmpeg_cmd(source: Dict) -> str:
         "pipe:"
     ]
     return ' '.join(cmd)
+
+
+def get_frame_size_fps(detect: Dict) -> Tuple[int, int, int]:
+    return (detect['width'],
+            detect['height'],
+            detect['fps'])

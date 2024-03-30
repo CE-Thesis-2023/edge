@@ -58,7 +58,7 @@ class Application:
     def _run(self):
         self._start_capturers()
         self._start_processors()
-        self._start_event_capturers()
+        # self._start_event_capturers()
 
         while not self.stopper.is_set():
             time.sleep(5)
@@ -116,9 +116,12 @@ class Application:
 
     def _stop(self):
         for p in self.capturers:
-            p.join()
+            if p.is_alive():
+                p.join()
         for p in self.processors:
-            p.join()
-        for p in self.events_capturers:
-            p.join()
+            if p.is_alive():
+                p.join()
+        # for p in self.events_capturers:
+        #     if p.is_alive():
+        #         p.join()
         return
