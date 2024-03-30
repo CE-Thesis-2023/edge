@@ -191,17 +191,21 @@ class EdgeProcessor:
             proc = capturer["capturer_process"]
             det_proc = capturer["detector_process"]
             q: mp.Queue = capturer["frame_queue"]
+            while not q.empty():
+                try:
+                    q.get_nowait()
+                except queue.Empty:
+                    break
             q.close()
             logger.info(f"EdgeProcessor: Queue for process {name} cleared")
             if proc is not None:
                 logger.info(
                     f"EdgeProcessor: Waiting for process {name} to exit")
-                proc.join()
+
             logger.info(f"EdgeProcessor: Capturer process {name} stopped")
             if det_proc is not None:
                 logger.info(
                     f"EdgeProcessor: Waiting for detector process {name} to exit")
-                det_proc.join()
 
     def configure(self) -> None:
         if not os.path.exists(DEFAULT_CONFIG_FILE):
