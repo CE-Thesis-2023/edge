@@ -40,7 +40,8 @@ def with_settings(
         name: str,
         settings: Dict):
     source = settings['source']
-    ffmpeg_cmd = get_ffmpeg_cmd(source)
+    detect = settings['detect']
+    ffmpeg_cmd = get_ffmpeg_cmd(source, detect)
     logging.debug(f"Capturer {name}: FFmpeg command: {ffmpeg_cmd}")
 
 
@@ -89,7 +90,9 @@ class VideoStreamProvider(threading.Thread):
         self.start_capturer()
 
     def start_ffmpeg(self):
-        cmd = get_ffmpeg_cmd(self.settings['source'])
+        source = self.settings['source']
+        detect = self.settings['detect']
+        cmd = get_ffmpeg_cmd(source, detect)
         self.ffmpeg_proc = start_or_restart_ffmpeg(
             ffmpeg_cmd=cmd,
             log_pipe=self.log_pipe,

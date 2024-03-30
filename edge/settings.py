@@ -1,5 +1,8 @@
-from typing import Dict, Tuple
+import os
+import subprocess as sp
+from typing import Dict, Tuple, Optional
 
+import picologging as logging
 import yaml
 from cerberus import Validator
 
@@ -129,12 +132,25 @@ def with_defaults(settings: Dict):
     return settings
 
 
-def get_ffmpeg_cmd(source: Dict) -> str:
+def get_ffmpeg_cmd(source: Dict, detect: Dict) -> str:
+    info = get_frame_size_fps(detect)
+    fps = info[2]
+    width, height = info[:2]
+    decode_args = get_hardware_acceleration_decode(
+        hardware_acceleration_args=source['hardware-acceleration'])
+    scale_args = get_hardware_acceleration_scale(
+        hardware_acceleration_args=source['hardware-acceleration'],
+        fps=fps,
+        width=width,
+        height=height)
+    input_args = get_preset_input(preset=source['input-args'])
     cmd = [
         "ffmpeg",
         source['global-args'],
-        source['input-args'],
+        decode_args,
+        input_args,
         f"-i {source['path']}",
+        scale_args,
         source['output-args'],
         "pipe:"
     ]
@@ -145,3 +161,89 @@ def get_frame_size_fps(detect: Dict) -> Tuple[int, int, int]:
     return (detect['width'],
             detect['height'],
             detect['fps'])
+
+
+def run_check_vainfo(device_name: Optional[str] = None) -> sp.CompletedProcess:
+    ffprobe_cmd = (
+        ["vainfo"]
+        if not device_name
+        else ["vainfo", "--display", "drm", "--device", f"/dev/dri/{device_name}"]
+    )
+    return sp.run(ffprobe_cmd, capture_output=True)
+
+
+class LibvaGpuSelector:
+    _selected_gpu = None
+
+    def get_selected_gpu(self) -> str:
+        if not os.path.exists("/dev/dri"):
+            return ""
+
+        if self._selected_gpu:
+            return self._selected_gpu
+
+        devices = list(filter(lambda d: d.startswith(
+            "render"), os.listdir("/dev/dri")))
+
+        if len(devices) < 2:
+            self._selected_gpu = "/dev/dri/renderD128"
+            return self._selected_gpu
+
+        for device in devices:
+            check = run_check_vainfo(device_name=device)
+
+            logging.debug(
+                f"{device} return vainfo status code: {check.returncode}")
+
+            if check.returncode == 0:
+                self._selected_gpu = f"/dev/dri/{device}"
+                return self._selected_gpu
+
+        return ""
+
+
+FFMPEG_PRESETS_INPUT = {
+    'rtsp-generic': [
+        "-avoid_negative_ts",
+        "make_zero",
+        "-fflags",
+        "+genpts+discardcorrupt",
+        "-rtsp_transport",
+        "tcp",
+        "-timeout",
+        "5000000",
+        "-use_wallclock_as_timestamps",
+        "1",
+    ]
+}
+
+_gpu_selector = LibvaGpuSelector()
+
+FFMPEG_HARDWARE_ACCELERATION_SCALE = {
+    "va-api": "-r {0} -vf fps={0},scale_vaapi=w={1}:h={2}:format=nv12,hwdownload,format=nv12,format=yuv420p",
+    "quicksync": "-r {0} -vf vpp_qsv=framerate={0}:w={1}:h={2}:format=nv12,hwdownload,format=nv12,format=yuv420p"
+}
+
+FFMPEG_HARDWARE_ACCELERATION_DECODE = {
+    "va-api": f"-hwaccel_flags allow_profile_mismatch -hwaccel vaapi -hwaccel_device {_gpu_selector.get_selected_gpu()} -hwaccel_output_format vaapi",
+    "quicksync": f"-hwaccel qsv -qsv_device {_gpu_selector.get_selected_gpu()} -hwaccel_output_format qsv -c:v h264_qsv",
+}
+
+
+def get_preset_input(preset: str) -> str:
+    return ' '.join(FFMPEG_PRESETS_INPUT.get(
+        preset, FFMPEG_PRESETS_INPUT['rtsp-generic']))
+
+
+def get_hardware_acceleration_scale(hardware_acceleration_args: str,
+                                    fps: int,
+                                    width: int,
+                                    height: int) -> str:
+    template = FFMPEG_HARDWARE_ACCELERATION_SCALE.get(hardware_acceleration_args,
+                                                      FFMPEG_HARDWARE_ACCELERATION_SCALE["va-api"])
+    return template.format(fps, width, height)
+
+
+def get_hardware_acceleration_decode(hardware_acceleration_args: str) -> str:
+    return FFMPEG_HARDWARE_ACCELERATION_DECODE.get(hardware_acceleration_args,
+                                                   FFMPEG_HARDWARE_ACCELERATION_DECODE["va-api"])
