@@ -62,13 +62,16 @@ class Application:
             time.sleep(1)
 
     def _init_capturers(self):
-        p = mp.Process(
-            target=run_capture,
-            args=(self.settings,
-                  self.stopper,
-                  self.frame_queue),
-        )
-        self.capturers.append(p)
+        cameras = self.settings['cameras']
+        for name, configs in cameras.items():
+            p = mp.Process(
+                target=run_capture,
+                args=(name,
+                      configs,
+                      self.stopper,
+                      self.frame_queue),
+            )
+            self.capturers.append(p)
 
     def _init_processors(self):
         p = mp.Process(

@@ -127,3 +127,15 @@ def with_defaults(settings: Dict):
         if source.get('output-args') is None:
             source['output-args'] = " ".join(DEFAULT_CAMERA_OUTPUT_ARGUMENTS)
     return settings
+
+
+def get_ffmpeg_cmd(source: Dict) -> str:
+    cmd = [
+        "ffmpeg",
+        source['global-args'],
+        source['input-args'],
+        f"-i {source['path']}",
+        source['output-args'],
+        "pipe:"
+    ]
+    return ' '.join(cmd)
