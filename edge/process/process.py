@@ -1,7 +1,9 @@
-import logging
+import picologging as logging
 import multiprocessing as mp
-
+import time
 from typing import Dict
+
+from edge.helpers.frame import SharedMemoryFrameManager
 
 
 def run_process(
@@ -15,14 +17,21 @@ def run_process(
         name=name,
         settings=settings,
     )
+
+    manager = SharedMemoryFrameManager()
+
     while not stopper.is_set():
         try:
-            res = frame_queue.get(timeout=1, block=False)
-            if res is not None:
-                logging.debug(res)
-            event_queue.put(f"Event {res}")
-        except Exception:
-            continue
+            key = frame_queue.get(timeout=1, block=False)
+            if key is None:
+                continue
+            value = manager.get(name=key, shape=(3, 3))
+            logging.info(f"Processor received value: {value}")
+
+            manager.delete(name=key)
+        except Exception as err:
+            logging.error(f"Failed to read key and frame from Capturer: {err}")
+        time.sleep(0.2)
     return
 
 

@@ -61,7 +61,7 @@ class Application:
         self._start_event_capturers()
 
         while not self.stopper.is_set():
-            time.sleep(1)
+            time.sleep(5)
 
     def _init_capturers(self):
         cameras = self.settings['cameras']

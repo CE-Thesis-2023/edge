@@ -2,8 +2,10 @@ import multiprocessing as mp
 import time
 from typing import Dict
 
+import numpy as np
 import picologging as logging
 
+from edge.helpers.frame import SharedMemoryFrameManager
 from edge.settings import get_ffmpeg_cmd
 
 
@@ -17,13 +19,19 @@ def run_capture(
         name=name,
         settings=settings)
 
+    manager = SharedMemoryFrameManager()
+
     while not stopper.is_set():
         try:
-            frame_queue.put("Capture")
-            logging.info("Capture")
-        except Exception:
-            continue
-        time.sleep(1)
+            key = f"{time.time()}"
+            frame_queue.put(key,
+                            block=False)
+            buffer = manager.create(name=key, size=9)
+            buffer[:] = np.zeros((3, 3), dtype=np.uint8).tobytes()
+            manager.close(name=key)
+        except Exception as err:
+            logging.error(f"Error putting frame into manager: {err}")
+        time.sleep(0.2)
     return
 
 
