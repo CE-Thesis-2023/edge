@@ -2,11 +2,14 @@ import multiprocessing as mp
 import signal
 import sys
 import time
+from multiprocessing import shared_memory
+from typing import List
 
 import picologging as logging
 
 from edge.capture.capture import run_capture
 from edge.event.event import run_event_capture
+from edge.process.object.detector import ObjectDetectionProcess
 from edge.process.process import run_process
 from edge.settings import load, validate, with_defaults
 
@@ -19,6 +22,10 @@ class Application:
         self.events_capturers = []
         self.frame_queue = None
         self.event_queue = None
+        self.detected_frames_queue = None
+        self.detectors: List[ObjectDetectionProcess] = []
+        self.detection_out_events = {}
+        self.detection_shms = []
         self.settings = None
         return
 
@@ -39,8 +46,14 @@ class Application:
                             format="%(asctime)s [%(filename)s:%(lineno)d]\t %(message)s",
                             datefmt="%Y-%m-%d %H:%M:%S",
                             stream=sys.stdout)
-        self.frame_queue = mp.Queue(maxsize=2)
-        self.event_queue = mp.Queue(maxsize=2)
+        self._init_queues()
+        self._init_object_detectors()
+        self._load_settings()
+        self._init_capturers()
+        self._init_processors()
+        self._init_event_capturers()
+
+    def _load_settings(self):
         self.settings = load("./configs.yaml")
         errs = validate(self.settings)
         if errs:
@@ -51,11 +64,9 @@ class Application:
             logging.info("Configuration is valid")
         self.settings = with_defaults(self.settings)
         logging.debug(f"Configurations: {self.settings}")
-        self._init_capturers()
-        self._init_processors()
-        self._init_event_capturers()
 
     def _run(self):
+        self._start_object_detectors()
         self._start_capturers()
         self._start_processors()
         self._start_event_capturers()
@@ -101,6 +112,50 @@ class Application:
                     self.event_queue),
             )
             self.events_capturers.append(p)
+
+    def _init_object_detectors(self):
+        cameras = self.settings['cameras']
+        for c in cameras.keys():
+            detect = cameras['detect']
+            self.detection_out_events[c] = mp.Event()
+            try:
+                frame_size = detect['width'] * detect['height'] * 3
+                shm_in = shared_memory.SharedMemory(
+                    name=c,
+                    create=True,
+                    size=frame_size)
+            except FileExistsError:
+                shm_in = shared_memory.SharedMemory(
+                    name=c)
+            try:
+                shm_out = shared_memory.SharedMemory(
+                    name=f"detection-result_{c}",
+                    create=True,
+                    size=20 * 6 * 4)
+            except FileExistsError:
+                shm_out = shared_memory.SharedMemory(
+                    name=f"detection-result_{c}")
+            self.detection_shms.append(shm_out)
+            self.detection_shms.append(shm_in)
+        process = ObjectDetectionProcess(
+            name="object-detection",
+            detection_queue=self.frame_queue,
+            out_events=self.detection_out_events,
+            stopper=self.stopper,
+            model_settings=self.settings['model'],
+        )
+        self.detectors.append(process)
+
+    def _start_object_detectors(self):
+        for p in self.detectors:
+            p.start_or_restart()
+
+    def _init_queues(self):
+        self.frame_queue = mp.Queue(maxsize=2)
+        self.event_queue = mp.Queue(maxsize=2)
+        self.detected_frames_queue = mp.Queue(
+            maxsize=len(self.settings['cameras'] or 2)
+        )
 
     def _start_capturers(self):
         for p in self.capturers:

@@ -142,7 +142,8 @@ class ObjectDetectionProcess:
                 self.stopper,
             )
         )
-        return
+        self.detector_process.daemon = True
+        self.detector_process.start()
 
     def stop(self):
         if self.detector_process and self.detector_process.exitcode:
