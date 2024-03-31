@@ -6,6 +6,8 @@ import picologging as logging
 import yaml
 from cerberus import Validator
 
+from edge.process.object.settings import PixelFormatEnum, ModelTypeEnum, InputTensorEnum
+
 DEFAULT_CAMERA_GLOBAL_ARGUMENTS = ["-hide_banner",
                                    "-loglevel", "warning", "-threads", "2"]
 
@@ -85,6 +87,34 @@ schema = {
                         },
                     },
                 },
+                'model': {
+                    'type': 'dict',
+                    'schema': {
+                        'path': {
+                            'type': 'string',
+                            'required': True,
+                            'description': 'Path to the model file'
+                        },
+                        'input_pixel_format': {
+                            'type': 'string',
+                            'required': True,
+                            'allowed': list(PixelFormatEnum),
+                            'description': 'Input pixel format'
+                        },
+                        'type': {
+                            'type': 'string',
+                            'required': True,
+                            'allowed': list(ModelTypeEnum),
+                            'description': 'Model type'
+                        },
+                        'input_tensor': {
+                            'type': 'string',
+                            'required': True,
+                            'allowed': list(InputTensorEnum),
+                            'description': 'Input tensor format'
+                        },
+                    }
+                }
             }
         }
     }
@@ -129,6 +159,15 @@ def with_defaults(settings: Dict):
             source['global-args'] = " ".join(DEFAULT_CAMERA_GLOBAL_ARGUMENTS)
         if source.get('output-args') is None:
             source['output-args'] = " ".join(DEFAULT_CAMERA_OUTPUT_ARGUMENTS)
+
+    model = settings['model']
+    if model.get('input_pixel_format') is None:
+        model['input_pixel_format'] = PixelFormatEnum.RGB.value
+    if model.get('type') is None:
+        model['type'] = ModelTypeEnum.YOLOv8
+    if model.get('input_tensor') is None:
+        model['input_tensor'] = InputTensorEnum.NCHW.value
+        
     return settings
 
 
