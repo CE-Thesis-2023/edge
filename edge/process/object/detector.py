@@ -75,7 +75,7 @@ def start_detector(
     for key in out_events.keys():
         out_shm = shared_memory.SharedMemory(
             name=f"detection-result_{key}",
-            create=True)
+            create=False)
         # magic number here, copied from Frigate
         out_nparr = np.ndarray((20, 6),
                                dtype=np.float32,

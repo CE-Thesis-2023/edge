@@ -9,3 +9,12 @@ cameras:
       height: 320
       width: 320
       fps: 10
+model:
+  path: './models/yolov8_tflite_customized.tflite'
+  input_pixel_format: 'rgb'
+  type: 'yolov8'
+  input_tensor: 'nchw'
+  labels:
+    - person
+  height: 320
+  width: 320

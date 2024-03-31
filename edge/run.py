@@ -46,9 +46,9 @@ class Application:
                             format="%(asctime)s [%(filename)s:%(lineno)d]\t %(message)s",
                             datefmt="%Y-%m-%d %H:%M:%S",
                             stream=sys.stdout)
+        self._load_settings()
         self._init_queues()
         self._init_object_detectors()
-        self._load_settings()
         self._init_capturers()
         self._init_processors()
         self._init_event_capturers()
@@ -115,11 +115,12 @@ class Application:
 
     def _init_object_detectors(self):
         cameras = self.settings['cameras']
+        model = self.settings['model']
         for c in cameras.keys():
-            detect = cameras['detect']
+            detect = cameras[c]['detect']
             self.detection_out_events[c] = mp.Event()
             try:
-                frame_size = detect['width'] * detect['height'] * 3
+                frame_size = model['width'] * model['height'] * 3
                 shm_in = shared_memory.SharedMemory(
                     name=c,
                     create=True,
@@ -142,7 +143,7 @@ class Application:
             detection_queue=self.frame_queue,
             out_events=self.detection_out_events,
             stopper=self.stopper,
-            model_settings=self.settings['model'],
+            model_settings=model,
         )
         self.detectors.append(process)
 

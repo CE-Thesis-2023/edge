@@ -87,35 +87,46 @@ schema = {
                         },
                     },
                 },
-                'model': {
-                    'type': 'dict',
-                    'schema': {
-                        'path': {
-                            'type': 'string',
-                            'required': True,
-                            'description': 'Path to the model file'
-                        },
-                        'input_pixel_format': {
-                            'type': 'string',
-                            'required': True,
-                            'allowed': list(PixelFormatEnum),
-                            'description': 'Input pixel format'
-                        },
-                        'type': {
-                            'type': 'string',
-                            'required': True,
-                            'allowed': list(ModelTypeEnum),
-                            'description': 'Model type'
-                        },
-                        'input_tensor': {
-                            'type': 'string',
-                            'required': True,
-                            'allowed': list(InputTensorEnum),
-                            'description': 'Input tensor format'
-                        },
-                    }
-                }
             }
+        }
+    },
+    'model': {
+        'type': 'dict',
+        'schema': {
+            'path': {
+                'type': 'string',
+                'required': True,
+            },
+            'input_pixel_format': {
+                'type': 'string',
+                'required': True,
+                'allowed': list(PixelFormatEnum),
+            },
+            'type': {
+                'type': 'string',
+                'required': True,
+                'allowed': list(ModelTypeEnum),
+            },
+            'labels': {
+                'type': 'list',
+                'required': True,
+                'schema': {
+                    'type': 'string'
+                },
+            },
+            'input_tensor': {
+                'type': 'string',
+                'required': True,
+                'allowed': list(InputTensorEnum),
+            },
+            'width': {
+                'type': 'integer',
+                'required': True,
+            },
+            'height': {
+                'type': 'integer',
+                'required': True,
+            },
         }
     }
 }
@@ -167,7 +178,7 @@ def with_defaults(settings: Dict):
         model['type'] = ModelTypeEnum.YOLOv8
     if model.get('input_tensor') is None:
         model['input_tensor'] = InputTensorEnum.NCHW.value
-        
+
     return settings
 
 
