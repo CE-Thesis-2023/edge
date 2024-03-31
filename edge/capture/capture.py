@@ -168,8 +168,23 @@ class FrameCollector:
             except queue.Full:
                 logging.error(f"{self.name} FrameCollector queue is full")
                 self.manager.delete(name=key)
+        self._cleanup()
         logging.debug(f"{self.name} FrameCollector stopped")
         return
+
+    def _cleanup(self):
+        if self.ffmpeg_proc.poll() is None:
+            logging.debug(f"{self.name} Stopping FFmpeg process")
+            self.ffmpeg_proc.terminate()
+            try:
+                self.ffmpeg_proc.communicate(timeout=5)
+            except sp.TimeoutExpired:
+                logging.debug(f"{self.name} FFmpeg process timeout expired, killing")
+                self.ffmpeg_proc.kill()
+                self.ffmpeg_proc.communicate()
+        while not self.frames.empty():
+            key = self.frames.get_nowait()
+            self.manager.delete(name=key)
 
 
 class FrameCollectorThread(threading.Thread):

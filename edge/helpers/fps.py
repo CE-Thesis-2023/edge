@@ -16,8 +16,8 @@ class FPS:
     def update(self) -> None:
         curr = now()
         if self._start is None:
-            self._start = now
-        self._timestamps.append(now)
+            self._start = curr
+        self._timestamps.append(curr)
         if len(self._timestamps) > (self._max_events + 100):
             self._timestamps = self._timestamps[(1 - self._max_events):]
         self.expire_timestamps(curr)
