@@ -7,7 +7,7 @@ cameras:
       hardware-acceleration: 'va-api'
     detect:
       height: 320
-      width: 320
+      width: 480
       fps: 10
 model:
   path: './models/yolov8_tflite_customized.tflite'
@@ -17,4 +17,4 @@ model:
   labels:
     - person
   height: 320
-  width: 320
+  width: 480

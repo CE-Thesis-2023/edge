@@ -152,9 +152,11 @@ class FrameCollector:
             buf = self.manager.create(name=key, size=self.size)
             try:
                 buf[:] = self.ffmpeg_proc.stdout.read(self.size)
+                # frame is (height * width) bytes
             except Exception as err:
                 if self._stopped:
-                    logging.debug(f"{self.name} FrameCollector stopping on error and request")
+                    logging.debug(
+                        f"{self.name} FrameCollector stopping on error and request")
                     break
                 logging.exception(err)
                 if self.ffmpeg_proc.poll() is not None:
@@ -179,7 +181,8 @@ class FrameCollector:
             try:
                 self.ffmpeg_proc.communicate(timeout=5)
             except sp.TimeoutExpired:
-                logging.debug(f"{self.name} FFmpeg process timeout expired, killing")
+                logging.debug(
+                    f"{self.name} FFmpeg process timeout expired, killing")
                 self.ffmpeg_proc.kill()
                 self.ffmpeg_proc.communicate()
         while not self.frames.empty():
