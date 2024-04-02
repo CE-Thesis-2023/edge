@@ -6,10 +6,12 @@ from typing import List, Dict
 
 import numpy as np
 import picologging as logging
+import cv2
 
 from edge.helpers.fps import FPS
 from edge.helpers.frame import SharedMemoryFrameManager
 from edge.process.object.base import ObjectDetectorAPI
+from edge.settings import PixelFormatEnum
 
 
 class LocalObjectDetector:
@@ -24,7 +26,8 @@ class LocalObjectDetector:
 
     def detect(self, tensor_input, threshold=0.4):
         detections = []
-        raw_detections: List = self.detect_api.detect(tensor_input=tensor_input)
+        raw_detections: List = self.detect_api.detect(
+            tensor_input=tensor_input)
         for d in raw_detections:
             detections.append(d)
         self.fps.update()
@@ -87,6 +90,7 @@ def start_detector(
 
     average_fps = FPS()
     average_fps.start()
+
     while not stopper.is_set():
         try:
             key = detection_input.get(timeout=1, block=True)
@@ -157,3 +161,39 @@ class ObjectDetectionProcess:
             self.detector_process.kill()
             self.detector_process.join()
         logging.debug("Detector process is stopped")
+
+
+def detect_with_detector(
+        detect_settings: Dict,
+        model_settings: Dict,
+        detector: LocalObjectDetector,
+        frame: np.ndarray,
+):
+    tensor_input = create_tensor_input(
+        frame=frame,
+        model_settings=model_settings,
+    )
+    detections = []
+    regions = detector.detect(
+        tensor_input=tensor_input)
+    for r in regions:
+        detections.append(r)
+    return detections
+
+
+def create_tensor_input(
+        frame: np.ndarray,
+        model_settings: Dict,):
+    format = model_settings['input_pixel_format']
+    height = model_settings['height']
+    width = model_settings['width']
+    if format == PixelFormatEnum.RGB:
+        converted = cv2.cvtColor(frame, cv2.COLOR_YUV2RGB_I420)
+    elif format == PixelFormatEnum.BGR:
+        converted = cv2.cvtColor(frame, cv2.COLOR_YUV2BGR_I420)
+    if converted.shape != (height, width, 3):
+        converted = cv2.resize(
+            converted,
+            (width, height),
+            interpolation=cv2.INTER_LINEAR)
+    return np.expand_dims(converted, axis=0)

@@ -71,6 +71,20 @@ schema = {
                         'max_disappear': {
                             'type': 'integer',
                         },
+                        'stationary': {
+                            'type': 'dict',
+                            'schema': {
+                                'interval': {
+                                    'type': 'integer'
+                                },
+                                'threshold': {
+                                    'type': 'integer'
+                                },
+                                'max_frames': {
+                                    'type': 'integer'
+                                }
+                            }
+                        }
                     },
                 },
                 'mqtt': {
@@ -163,6 +177,15 @@ def with_defaults(settings: Dict):
             detect['min_initialized'] = 10
         if detect.get('max_disappear') is None:
             detect['max_disappear'] = 10
+        if detect.get('stationary') is None:
+            detect['stationary'] = {}
+        stationary = detect.get('stationary')
+        if stationary.get('interval') is None:
+            stationary['interval'] = 0
+        if stationary.get('threshold''threshold') is None:
+            stationary['threshold'] = 1
+        if stationary.get('max_frames') is None:
+            stationary['max_frames'] = 1
         if values.get('source') is None:
             values['source'] = {}
         source = values['source']
@@ -210,6 +233,12 @@ def get_ffmpeg_cmd(source: Dict, detect: Dict) -> str:
 def get_frame_size_fps(detect: Dict) -> Tuple[int, int, int]:
     return (detect['width'],
             detect['height'],
+            detect['fps'])
+
+
+def get_frame_size_fps_yuv(detect: Dict) -> Tuple[int, int, int]:
+    return (detect['width'],
+            (detect['height'] * 3//2),
             detect['fps'])
 
 

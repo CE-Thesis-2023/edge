@@ -9,6 +9,7 @@ import picologging as logging
 from edge.helpers.fps import FPS
 from edge.helpers.frame import SharedMemoryFrameManager
 from edge.process.motion.motion import MotionDetector
+from edge.process.tracker.base import ObjectTracker
 
 
 def run_process(
@@ -39,6 +40,7 @@ def run_detectors(
         stopper: mp.Event,
         frame_queue: mp.Queue,
         event_queue: mp.Queue,
+        object_tracker: ObjectTracker = None,
 ):
     manager = SharedMemoryFrameManager()
     fps = FPS(max_events=200)
@@ -52,6 +54,9 @@ def run_detectors(
         fps=detect['fps'],
         shape=frame_shape,
     )
+    stationary_frame_counter = 0
+    stationary_check_interval = detect['stationary']['interval']
+    stationary_threshold = detect['stationary']['threshold']
 
     while not stopper.is_set():
         key = ""
@@ -75,14 +80,49 @@ def run_detectors(
                 continue
         except Exception as err:
             logging.exception(err)
-            logging.error(f"Failed to read frame from SharedMemoryFrameManager: {err}")
+            logging.error(
+                f"Failed to read frame from SharedMemoryFrameManager: {err}")
 
         motion_boxes = motion_detector.detect(frame=frame)
         if len(motion_boxes) > 0:
             logging.info(f"Motion detected: {motion_boxes}")
 
-        fps.update()
-        manager.delete(name=key)
+        # if stationary_frame_counter == stationary_check_interval:
+        #     stationary_frame_counter = 0
+        #     stationary_object_ids = []
+        # else:
+        #     stationary_frame_counter += 1
+        #     stationary_object_ids = []
+        #     for object_id, obj in object_tracker.tracked_objects().items():
+        #         is_stable = (obj.motionless_count >= stationary_threshold)
+        #         has_disappeared = object_tracker.has_disappeared(object_id)
+        #         if is_stable and not has_disappeared:
+        #             stationary_object_ids.append(object_id)
+        #         # TODO: Intersect any of the motion boxes
+
+        # tracked_object_boxes = []
+        # for object_id, obj in object_tracker.tracked_objects().items():
+        #     if object_id not in stationary_object_ids:
+        #         if obj.motionless_count < stationary_threshold:
+        #             estimate = obj.estimate
+        #             tracked_object_boxes.append(estimate)
+        #         else:
+        #             box = obj.box
+        #             tracked_object_boxes.append(box)
+
+        # object_boxes = tracked_object_boxes + object_tracker.untracked_objects()
+
+        # regions = []
+        # # TODO: Get cluster regions
+
+        if event_queue.full():
+            logging.warning(f"Event queue is full, dropping frame: {key}")
+            manager.delete(name=key)
+            continue
+        else:
+            fps.update()
+            event_queue.put(None)
+            manager.close(name=key)
 
 
 def with_settings(name: str, settings: Dict):
