@@ -40,7 +40,7 @@ def start_or_restart_ffmpeg(
             stdout=sp.PIPE,
             stderr=log_pipe,
             stdin=sp.DEVNULL,
-            bufsize=frame_size * 10,
+            bufsize=frame_size * 20,
             start_new_session=True
         )
     return process

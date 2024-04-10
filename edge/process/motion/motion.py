@@ -21,9 +21,9 @@ class MotionDetector:
         self.shape = shape
         self.blur_radius = blur_radius
         self.interpolation = interpolation
+        self.height = shape[0]
+        self.width = shape[1]
         self.size = shape[0] * shape[1]
-        self.height = shape[1]
-        self.width = shape[0]
         self.motion_frame_size = (
             self.height,
             self.height * (self.width // self.height)

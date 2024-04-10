@@ -45,13 +45,13 @@ def run_object_detector(
         name=name,
         model_settings=model_settings,
     )
-    start_detector(
-        name=name,
-        model_settings=model_settings,
-        detection_input=detection_input,
-        out_events=out_events,
-        stopper=stopper,
-    )
+    # start_detector(
+    #     name=name,
+    #     model_settings=model_settings,
+    #     detection_input=detection_input,
+    #     out_events=out_events,
+    #     stopper=stopper,
+    # )
 
 
 def with_settings(name: str, model_settings: Dict):

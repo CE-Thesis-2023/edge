@@ -9,14 +9,13 @@ from cerberus import Validator
 from edge.process.object.settings import PixelFormatEnum, ModelTypeEnum, InputTensorEnum
 
 DEFAULT_CAMERA_GLOBAL_ARGUMENTS = ["-hide_banner",
-                                   "-loglevel", "warning", "-threads", "2"]
+                                   "-loglevel", "warning"]
 
-DEFAULT_CAMERA_OUTPUT_ARGUMENTS = ["-threads",
-                                   "2",
-                                   "-f",
-                                   "rawvideo",
-                                   "-pix_fmt",
-                                   "yuv420p"]
+DEFAULT_CAMERA_OUTPUT_ARGUMENTS = [
+    "-f",
+    "rawvideo",
+    "-pix_fmt",
+    "yuv420p"]
 
 schema = {
     'cameras': {
@@ -208,7 +207,7 @@ def with_defaults(settings: Dict):
 def get_ffmpeg_cmd(source: Dict, detect: Dict) -> str:
     info = get_frame_size_fps(detect)
     fps = info[2]
-    width, height = info[:2]
+    height, width = info[:2]
     decode_args = get_hardware_acceleration_decode(
         hardware_acceleration_args=source['hardware-acceleration'])
     scale_args = get_hardware_acceleration_scale(
@@ -231,13 +230,13 @@ def get_ffmpeg_cmd(source: Dict, detect: Dict) -> str:
 
 
 def get_frame_size_fps(detect: Dict) -> Tuple[int, int, int]:
-    return (detect['width'],
-            detect['height'],
+    return (detect['height'],
+            detect['width'],
             detect['fps'])
 
 
 def get_frame_size_fps_yuv(detect: Dict) -> Tuple[int, int, int]:
-    return (detect['width'],
+    return (detect['height'],
             (detect['height'] * 3//2),
             detect['fps'])
 
@@ -300,7 +299,8 @@ _gpu_selector = LibvaGpuSelector()
 
 FFMPEG_HARDWARE_ACCELERATION_SCALE = {
     "va-api": "-r {0} -vf fps={0},scale_vaapi=w={1}:h={2}:format=nv12,hwdownload,format=nv12,format=yuv420p",
-    "quicksync": "-r {0} -vf vpp_qsv=framerate={0}:w={1}:h={2}:format=nv12,hwdownload,format=nv12,format=yuv420p"
+    "quicksync": "-r {0} -vf vpp_qsv=framerate={0}:w={1}:h={2}:format=nv12,hwdownload,format=nv12,format=yuv420p",
+    "default": "-r {0} -vf fps={0},scale=w={1}:h={2}",
 }
 
 FFMPEG_HARDWARE_ACCELERATION_DECODE = {

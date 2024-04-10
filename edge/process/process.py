@@ -47,7 +47,7 @@ def run_detectors(
     fps = FPS(max_events=200)
 
     detect = settings['detect']
-    frame_shape = (detect['width'], detect['height'])
+    frame_shape = (detect['height'], detect['width'])
 
     motion_detector = MotionDetector(
         name=name,
@@ -58,7 +58,6 @@ def run_detectors(
     stationary_frame_counter = 0
     stationary_check_interval = detect['stationary']['interval']
     stationary_threshold = detect['stationary']['threshold']
-
     while not stopper.is_set():
         key = ""
         try:
@@ -79,14 +78,15 @@ def run_detectors(
             logging.info(f"Processor received frame: {frame.shape}")
             if frame is None:
                 continue
+            cv2.imwrite(f"debug/frames/{name}_{key}.jpg", frame)
         except Exception as err:
             logging.exception(err)
             logging.error(
                 f"Failed to read frame from SharedMemoryFrameManager: {err}")
 
-        motion_boxes = motion_detector.detect(frame=frame)
-        if len(motion_boxes) > 0:
-            logging.info(f"Motion detected: {motion_boxes}")
+        # motion_boxes = motion_detector.detect(frame=frame)
+        # if len(motion_boxes) > 0:
+        #     logging.info(f"Motion detected: {motion_boxes}")
 
         # if stationary_frame_counter == stationary_check_interval:
         #     stationary_frame_counter = 0
@@ -123,7 +123,7 @@ def run_detectors(
         else:
             fps.update()
             event_queue.put(None)
-            manager.close(name=key)
+            manager.delete(name=key)
 
 
 def with_settings(name: str, settings: Dict):
